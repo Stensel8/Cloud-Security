@@ -6,9 +6,6 @@ on:
   pull_request:
 
 # Follow the principle of least privilege: restrict permissions to what's needed.
-# This workflow only reads repository contents. If deploying or publishing artifacts,
-# grant only the specific permissions required (e.g., contents: write, packages: write).
-# Secrets are never logged in workflow output and should be accessed via ${{ secrets.* }}.
 permissions:
   contents: read
 
