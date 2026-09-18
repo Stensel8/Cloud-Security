@@ -1,5 +1,5 @@
 # Eclipse Temurin (Alpine), JDK only where we actually compile
-FROM docker.io/library/eclipse-temurin:26-jdk-alpine@sha256:e5b0a876436e5d1c8ff84dfd091cb530b83a9ed4273317d24acb673695bb7e0c AS build
+FROM docker.io/library/eclipse-temurin:26-jdk-alpine@sha256:8b7a8c567ddf2ea80020d175f83879ebedc0cc631040a5d4dc6a12a0cb8ec5e6 AS build
 
 # Set the working directory
 WORKDIR /app
