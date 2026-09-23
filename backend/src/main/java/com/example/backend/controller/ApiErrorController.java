@@ -23,7 +23,8 @@ public class ApiErrorController implements ErrorController {
                 : HttpStatus.INTERNAL_SERVER_ERROR;
 
         Object upstreamMessage = request.getAttribute(RequestDispatcher.ERROR_MESSAGE);
-        String message = shouldUseFriendlyMessage(status, upstreamMessage)
+        Object requestUri = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
+        String message = shouldUseFriendlyMessage(status, upstreamMessage, requestUri)
                 ? messageFor(status)
                 : upstreamMessage.toString();
 
@@ -37,13 +38,22 @@ public class ApiErrorController implements ErrorController {
         return ResponseEntity.status(status).body(body);
     }
 
-    private boolean shouldUseFriendlyMessage(HttpStatus status, Object upstreamMessage) {
+    private boolean shouldUseFriendlyMessage(HttpStatus status, Object upstreamMessage, Object requestUri) {
         if (upstreamMessage == null || upstreamMessage.toString().isBlank()) {
             return true;
         }
-        // 5xx: never leak the raw exception message (may contain internal/DB details).
-        // 404: always point people at the real API instead of Spring's raw resource-not-found text.
-        return status.is5xxServerError() || status == HttpStatus.NOT_FOUND;
+        if (status.is5xxServerError()) {
+            // Never leak the raw exception message (may contain internal/DB details).
+            return true;
+        }
+        if (status == HttpStatus.NOT_FOUND) {
+            // A 404 inside our own API surface is a deliberate "resource not found" from our
+            // own code (e.g. "Product 999 not found") - that message is worth keeping. Anything
+            // outside /api/products is a genuinely unmapped route, so point people at the real API.
+            String path = requestUri == null ? "" : requestUri.toString();
+            return !path.startsWith("/api/products");
+        }
+        return false;
     }
 
     private String messageFor(HttpStatus status) {
