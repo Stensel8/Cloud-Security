@@ -61,7 +61,7 @@ public class ApiErrorController implements ErrorController {
             return "No endpoint here. The API lives under /api/products.";
         }
         if (status == HttpStatus.BAD_REQUEST) {
-            return "The server couldn't process that request. Check that price and quantity are valid numbers.";
+            return "The server couldn't process that request. Check that all product fields are valid.";
         }
         return "Something went wrong handling that request.";
     }
