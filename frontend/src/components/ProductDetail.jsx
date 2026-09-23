@@ -11,6 +11,7 @@ export default function ProductDetail() {
   const { product, updateProduct, removeProductById } = useContext(ProductContext);
   const navigate = useNavigate();
   const [notFound, setNotFound] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,12 +39,13 @@ export default function ProductDetail() {
   }
 
   async function deleteProduct() {
+    setDeleteError(null);
     try {
       await deleteProductById(id);
       removeProductById(id);
       navigate("/");
     } catch (error) {
-      console.error('Error fetching products:', error);
+      setDeleteError(error.response?.data?.message || error.response?.data?.error || 'Could not delete the product. Try again.');
     }
   }
 
@@ -60,6 +62,7 @@ export default function ProductDetail() {
         </ol>
       </nav>
       <h4 className="text-center mb-5 mt-5">Product Info: {id}</h4>
+      {deleteError && <div className="alert alert-danger" role="alert">{deleteError}</div>}
       <table className="table">
         <tbody>
         <tr>

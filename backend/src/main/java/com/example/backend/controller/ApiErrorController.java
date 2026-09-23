@@ -23,9 +23,9 @@ public class ApiErrorController implements ErrorController {
                 : HttpStatus.INTERNAL_SERVER_ERROR;
 
         Object upstreamMessage = request.getAttribute(RequestDispatcher.ERROR_MESSAGE);
-        String message = (upstreamMessage != null && !upstreamMessage.toString().isBlank())
-                ? upstreamMessage.toString()
-                : messageFor(status);
+        String message = shouldUseFriendlyMessage(status, upstreamMessage)
+                ? messageFor(status)
+                : upstreamMessage.toString();
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
@@ -35,6 +35,15 @@ public class ApiErrorController implements ErrorController {
         body.put("message", message);
 
         return ResponseEntity.status(status).body(body);
+    }
+
+    private boolean shouldUseFriendlyMessage(HttpStatus status, Object upstreamMessage) {
+        if (upstreamMessage == null || upstreamMessage.toString().isBlank()) {
+            return true;
+        }
+        // 5xx: never leak the raw exception message (may contain internal/DB details).
+        // 404: always point people at the real API instead of Spring's raw resource-not-found text.
+        return status.is5xxServerError() || status == HttpStatus.NOT_FOUND;
     }
 
     private String messageFor(HttpStatus status) {

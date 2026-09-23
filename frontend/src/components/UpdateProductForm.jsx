@@ -13,8 +13,8 @@ export default function UpdateProductForm() {
   const [error, setError] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
-  async function update(target) {
-    target.preventDefault();
+  async function update(event) {
+    event.preventDefault();
     setError(null);
 
     try {
@@ -83,7 +83,7 @@ export default function UpdateProductForm() {
           </li>
         </ol>
       </nav>
-      <form>
+      <form onSubmit={update}>
         {error && <div className="alert alert-danger" role="alert">{error}</div>}
         <div className="mb-3 mt-5">
           <label htmlFor="title" className="form-label">Title</label>
@@ -107,7 +107,7 @@ export default function UpdateProductForm() {
           </div>
 
         </div>
-        <button onClick={update} type="submit" className="btn btn-primary">Update</button>
+        <button type="submit" className="btn btn-primary">Update</button>
       </form>
     </div>
   );

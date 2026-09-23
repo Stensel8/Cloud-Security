@@ -14,8 +14,8 @@ export default function CreateProductForm() {
 
   const {addProduct} = useContext(ProductContext);
 
-  async function add(target) {
-    target.preventDefault();
+  async function add(event) {
+    event.preventDefault();
     setError(null);
 
     try {
@@ -36,7 +36,7 @@ export default function CreateProductForm() {
   }
 
   return(
-    <form>
+    <form onSubmit={add}>
       {error && <div className="alert alert-danger" role="alert">{error}</div>}
       <div className="mb-3 mt-5">
         <label htmlFor="title" className="form-label">Title</label>
@@ -60,7 +60,7 @@ export default function CreateProductForm() {
         </div>
 
       </div>
-      <button onClick={add} type="submit" className="btn btn-primary">Add</button>
+      <button type="submit" className="btn btn-primary">Add</button>
     </form>
   );
 
