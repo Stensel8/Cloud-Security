@@ -12,6 +12,9 @@ export default function UpdateProductForm() {
   const {product, updateProduct} = useContext(ProductContext);
   const [error, setError] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   async function update(event) {
     event.preventDefault();
@@ -29,22 +32,48 @@ export default function UpdateProductForm() {
     let cancelled = false;
 
     async function fetchData() {
+      setLoading(true);
+      setLoadError(false);
+      setNotFound(false);
       try {
         const product = await getProductById(id);
         if (!cancelled) {
           updateProduct(product);
           setNotFound(false);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setNotFound(true);
+          if (error.response?.status === 404) {
+            setNotFound(true);
+          } else {
+            setLoadError(true);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
     }
 
     fetchData();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, loadAttempt, updateProduct]);
+
+  if (loading) {
+    return <p role="status">Loading product…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        <p>Could not load the product. Please try again.</p>
+        <button className="btn btn-primary" onClick={() => setLoadAttempt(attempt => attempt + 1)}>
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (notFound) {
     return <NotFound />;
