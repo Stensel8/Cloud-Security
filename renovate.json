@@ -5,13 +5,20 @@
   ],
   "forkProcessing": "enabled",
   "prConcurrentLimit": 0,
+  "automerge": true,
+  "platformAutomerge": true,
   "packageRules": [
     {
-      "matchManagers": ["dockerfile", "docker-compose", "github-actions"],
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose",
+        "github-actions"
+      ],
       "pinDigests": true
     }
   ],
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "automerge": true
   }
 }
