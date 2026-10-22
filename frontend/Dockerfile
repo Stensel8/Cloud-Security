@@ -20,7 +20,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # Serve stage
-FROM docker.io/library/nginx:1.31.8-alpine@sha256:e2d97c2b8c016f12c2f1a27d095685063b2f281c4edf2babfde6001cf4fb77a8
+FROM docker.io/library/nginx:1.31.8-alpine@sha256:1ef7ca94d7879df82421428ce13bd1eaa412404953859cf7a5b6512c25e67a60
 
 # Copy the custom nginx.conf file to the container
 COPY .docker/nginx.conf /etc/nginx/nginx.conf
