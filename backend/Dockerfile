@@ -14,7 +14,7 @@ COPY ./src /app/src
 RUN chmod +x /app/mvnw && /app/mvnw clean package -Dmaven.test.skip=true
 
 # Runtime only needs a JRE, not the full JDK the build stage used
-FROM docker.io/library/eclipse-temurin:27-jre-alpine@sha256:9d76de111573e77ac415d8344271a2e57dd19bd59c48725fa3bac38c101bd0ba
+FROM docker.io/library/eclipse-temurin:27-jre-alpine@sha256:0faf24c1d1e778bbc0700fc71c53b081c9432f1e51e6e41c86c63840e8b89ac1
 
 # Set the working directory
 WORKDIR /app
