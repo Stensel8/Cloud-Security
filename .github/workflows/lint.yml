@@ -19,21 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Zoek shell-scripts
-        id: find
-        run: |
-          files=$(find . -name '*.sh' -not -path './.git/*' | tr '\n' ' ')
-          echo "files=$files" >> "$GITHUB_OUTPUT"
-
-      - name: ShellCheck (SARIF)
-        if: steps.find.outputs.files != ''
-        run: shellcheck -f sarif ${{ steps.find.outputs.files }} > shellcheck.sarif || true
-
-      - uses: github/codeql-action/upload-sarif@8498dc4c2b27cdd99baf0f87955b29ebbf30c78d # v4.39.1
-        if: steps.find.outputs.files != ''
-        with:
-          sarif_file: shellcheck.sarif
-          category: shellcheck
+      # De shellcheck-versie op ubuntu-latest ondersteunt geen SARIF-output (alleen
+      # checkstyle/json/gcc/tty), dus geen upload naar het Security-tabblad hier -
+      # deze action annoteert bevindingen rechtstreeks in de Actions-log/PR-diff.
+      - uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
 
   hadolint:
     runs-on: ubuntu-latest

@@ -47,6 +47,13 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
 
+      - name: Setup JDK
+        if: matrix.build-mode == 'manual'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
       - name: Build backend (Java)
         if: matrix.build-mode == 'manual'
         working-directory: backend
