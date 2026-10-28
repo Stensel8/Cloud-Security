@@ -15,7 +15,7 @@ Frontend: http://localhost:3000, backend: http://localhost:8080/api/products.
 
 Mijn uitwerking van de Cloud Security-module. Deze applicatie draait in een 3-tier opzet op AWS (zie [`opentofu/`](opentofu/)), die ik week voor week verder beveilig. De originele opdrachten/slides van school staan in [`school docs/`](school%20docs/); elke week-map heeft naast de uitwerking (`README.md`) ook een `TODO.md` met wat er nog gedaan moet worden.
 
-De infrastructuurcode gebruikt [OpenTofu](https://opentofu.org/) in plaats van HashiCorp Terraform: dezelfde taal en providers, maar open source gebleven. Zie [week 1](week-1/README.md) voor waarom.
+De infrastructuurcode gebruikt [OpenTofu](https://opentofu.org/) in plaats van HashiCorp Terraform: dezelfde taal en providers, maar open source gebleven. Zie [week 1](week-1/README.md) voor waarom. Installatiehandleiding (van nul af aan opzetten): [`setup/README.md`](setup/README.md).
 
 - [Week 1](week-1/README.md) ([TODO](week-1/TODO.md)): 3-tier infrastructuur, netwerktekening, Shared Responsibility Model, bastion host
 - [Week 2](week-2/README.md) ([TODO](week-2/TODO.md)): IAM-authenticatie naar RDS, least privilege, Entra ID-federatie

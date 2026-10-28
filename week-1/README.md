@@ -47,44 +47,7 @@ Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving ki
 
 Rest van de instellingen laat ik op de AWS-standaard staan: Object Ownership op "ACLs disabled", Block all public access aan, en SSE-S3-encryptie met Bucket Key aan. Versioning zet ik niet aan, niet nodig voor dit project.
 
-### Variabelen en secrets: nooit in main.tf zelf
-
-Keypair-naam, bucketnaam, account-ID en mijn eigen IP horen niet in een publieke repository. Die staan daarom alleen in bestanden die in `.gitignore` staan:
-
-- `labnotes.txt` (repo-root): de menselijke notities die de handleiding vraagt.
-- `opentofu/terraform.tfvars` en `opentofu/rds-bootstrap/terraform.tfvars`: dezelfde waardes, in de vorm die OpenTofu zelf leest. `main.tf`/`rds.tf` verwijzen alleen naar `var.*` (zie [`variables.tf`](../opentofu/variables.tf)), nooit naar een letterlijke waarde.
-- `opentofu/backend.hcl`: alleen de bucketnaam voor de S3-backend. Dat kan niet via een gewone variabele, want OpenTofu moet de backend al kennen vóór het de rest van de variabelen inleest.
-
-Voor elk van deze drie staat er een `.example`-bestand wél in git, zodat de vorm duidelijk is zonder mijn eigen waardes prijs te geven.
-
-### Stappen (AWS CloudShell)
-
-```bash
-# 1. Keypair en S3-bucket voor de OpenTofu state eerst handmatig aanmaken in de AWS-console,
-#    waardes in labnotes.txt en in opentofu/terraform.tfvars + opentofu/backend.hcl zetten.
-
-# 2. OpenTofu installeren in CloudShell (de handleiding gebruikt tfenv voor Terraform,
-#    ik gebruik het OpenTofu-equivalent: tofuenv)
-git clone https://github.com/tofuutils/tofuenv.git ~/.tofuenv
-mkdir ~/bin
-ln -s ~/.tofuenv/bin/* ~/bin/
-tofuenv install 1.13.2
-tofuenv use 1.13.2
-tofu --version
-
-# 3. Eerst alléén rds.tf draaien (los, geen backend)
-cd opentofu/rds-bootstrap
-tofu init
-tofu apply
-# -> endpoint, db_vpc_id en route table id noteren in labnotes.txt en in opentofu/terraform.tfvars
-# -> daarna lokale .terraform/ en terraform.tfstate* van dit script verwijderen (OpenTofu's eigen vaste bestandsnamen, niet onze mapnaam)
-
-# 4. main.tf gebruikt nu overal var.* in plaats van REPLACE_WITH_*-placeholders (zie hierboven)
-cd ../
-tofu init -backend-config=backend.hcl
-tofu apply
-# -> minimaal 10 minuten wachten: de VM's installeren Docker en bouwen de containers bij het opstarten.
-```
+Keypair-naam, bucketnaam, account-ID en mijn eigen IP staan nergens in `main.tf` zelf, maar in `terraform.tfvars`/`backend.hcl` (niet gecommit) en in `labnotes.txt`. Volledige installatiehandleiding, stap voor stap: [`setup/README.md`](../setup/README.md).
 
 **Nog te doen (bewijs):** `tofu apply`-output, de resource map van beide load balancers met status "healthy", en een screenshot van de werkende applicatie via de DNS-naam van de presentation-load-balancer.
 
