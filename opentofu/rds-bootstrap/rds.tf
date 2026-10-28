@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "3.66.0"
+      version = "6.70.0"
     }
   }
 }
@@ -91,14 +91,19 @@ resource "aws_security_group" "rdssecuritygroup" {
 ###################################################
 # Create RDS database
 resource "aws_db_instance" "cloudsecdb" {
-  allocated_storage                  = 10
+  # identifier = de naam van de RDS-instance zelf (in de console en in iam.tf's data-lookup).
+  # db_name = de naam van de database/schema binnen de engine. Allebei "cloudsecdb", maar twee
+  # verschillende dingen - vóór provider v5 heette db_name nog "name", wat met v6.70.0 (zie README) niet
+  # meer werkt: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade
+  identifier                          = "cloudsecdb"
+  db_name                             = "cloudsecdb"
+  allocated_storage                   = 10
   engine                              = "mysql"
   instance_class                      = "db.t3.micro"
   username                            = "admin"
   password                            = "password123" # TODO week 2 (2.1): vervangen door IAM-authenticatie, zie week-2/README.md
-  name                                = "cloudsecdb"
-  vpc_security_group_ids             = [aws_security_group.rdssecuritygroup.id]
-  db_subnet_group_name               = aws_db_subnet_group.my_db_subnet_group.name
-  skip_final_snapshot                = true
+  vpc_security_group_ids              = [aws_security_group.rdssecuritygroup.id]
+  db_subnet_group_name                = aws_db_subnet_group.my_db_subnet_group.name
+  skip_final_snapshot                 = true
   iam_database_authentication_enabled = true # week 2 (2.1): zet de AWSAuthenticationPlugin-route open
 }
