@@ -35,7 +35,7 @@ Eerst een eigen EC2-keypair voor dit project, via EC2 → Key Pairs:
 
 <img src="images/ec2-keypair-aanmaken.png" alt="Create key pair-formulier: naam Cloud-Security (550600), type ED25519, formaat .pem" width="720">
 
-Deze keypair gebruik ik om op de EC2-instances in te loggen. De private key bewaar ik lokaal, niet in de repository.
+Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik in `labnotes.txt`, want die heb ik later nodig in het OpenTofu-script. De private key bewaar ik lokaal, niet in de repository.
 
 ### Stappen (AWS CloudShell)
 
