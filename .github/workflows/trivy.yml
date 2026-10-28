@@ -1,0 +1,38 @@
+name: Trivy
+
+# Scant kwetsbaarheden in dependencies (npm/maven/pip-lockfiles), misconfiguraties
+# in IaC (opentofu/*.tf, Dockerfiles) en per ongeluk gecommitte secrets.
+# Resultaten komen naast CodeQL in hetzelfde Security-tabblad (Code scanning alerts).
+
+on:
+  push:
+    branches: [uitwerkingen]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1" # elke maandagochtend
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Trivy scan (vuln + misconfig + secret)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-results.sarif
+
+      - uses: github/codeql-action/upload-sarif@8498dc4c2b27cdd99baf0f87955b29ebbf30c78d # v4.39.1
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy

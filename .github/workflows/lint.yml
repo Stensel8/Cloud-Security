@@ -1,0 +1,61 @@
+name: Lint
+
+# ShellCheck voor de shell-scripts (setup/lab-login.sh) en Hadolint voor de
+# Dockerfiles. Beide zetten hun bevindingen ook in het Security-tabblad, naast
+# CodeQL en Trivy. Faalt de pipeline niet op: dit is linting, geen policy-gate.
+
+on:
+  push:
+    branches: [uitwerkingen]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Zoek shell-scripts
+        id: find
+        run: |
+          files=$(find . -name '*.sh' -not -path './.git/*' | tr '\n' ' ')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+      - name: ShellCheck (SARIF)
+        if: steps.find.outputs.files != ''
+        run: shellcheck -f sarif ${{ steps.find.outputs.files }} > shellcheck.sarif || true
+
+      - uses: github/codeql-action/upload-sarif@8498dc4c2b27cdd99baf0f87955b29ebbf30c78d # v4.39.1
+        if: steps.find.outputs.files != ''
+        with:
+          sarif_file: shellcheck.sarif
+          category: shellcheck
+
+  hadolint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            dockerfile: backend/Dockerfile
+          - name: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          format: sarif
+          output-file: hadolint.sarif
+          no-fail: true
+
+      - uses: github/codeql-action/upload-sarif@8498dc4c2b27cdd99baf0f87955b29ebbf30c78d # v4.39.1
+        with:
+          sarif_file: hadolint.sarif
+          category: hadolint-${{ matrix.name }}
