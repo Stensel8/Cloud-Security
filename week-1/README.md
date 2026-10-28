@@ -25,6 +25,18 @@ Eenmaal gestart (timer loopt) geeft de lab tijdelijke AWS-credentials via "AWS D
 
 <img src="images/learner-lab-cloud-access.png" alt="AWS Academy Learner Lab met de tijdelijke CLI-credentials, credentials-blok afgeschermd" width="500">
 
+### Keypair aanmaken
+
+Eerst een eigen EC2-keypair voor dit project, via EC2 → Key Pairs:
+
+<img src="images/ec2-keypairs-zoeken.png" alt="EC2-console, zoeken naar de Key Pairs-functie" width="720">
+
+<img src="images/ec2-keypairs-overzicht.png" alt="EC2 Key Pairs-overzicht met de bestaande key vockey, Create key pair wordt aangeklikt" width="720">
+
+<img src="images/ec2-keypair-aanmaken.png" alt="Create key pair-formulier: naam Cloud-Security (550600), type ED25519, formaat .pem" width="720">
+
+Naam: `Cloud-Security (550600)`, type ED25519 (werkt prima voor SSH naar de Ubuntu-instances; alleen Windows-AMI's hebben RSA nodig), bestandsformaat `.pem`. De private key bewaar ik lokaal, niet in de repository (`*.pem` staat in `.gitignore`), en de naam zet ik in `labnotes.txt` en straks in `local.sshkey` in [`opentofu/main.tf`](../opentofu/main.tf).
+
 ### Stappen (AWS CloudShell)
 
 ```bash
