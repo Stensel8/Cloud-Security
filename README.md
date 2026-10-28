@@ -7,7 +7,7 @@
 
 ## Run locally with Podman
 
-    podman compose --file docker-compose.yml up --detach --build
+    podman compose --file compose.yml up --detach --build
 
 Frontend: http://localhost:3000, backend: http://localhost:8080/api/products.
 

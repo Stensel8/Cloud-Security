@@ -26,4 +26,4 @@ Runs ESLint.
 
 ## Configuration
 
-`VITE_API_BASE_URL` (see `.env`) is the backend base URL. Vite inlines it at build time, so to point a built image at a different backend, pass it as a Docker build arg rather than an environment variable at container start (see the root `docker-compose.yml`).
+`VITE_API_BASE_URL` (see `.env`) is the backend base URL. Vite inlines it at build time, so to point a built image at a different backend, pass it as a Docker build arg rather than an environment variable at container start (see the root `compose.yml`).
