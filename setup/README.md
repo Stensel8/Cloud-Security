@@ -45,6 +45,6 @@ tofu apply
 
 ## Alternatief voor S3: Bunny.net
 
-Deze casus gebruikt AWS S3, dus dat houd ik aan. Voor mezelf gebruik ik voor opslag/CDN meestal [Bunny.net](https://bunny.net), een Sloveens (EU) bedrijf — qua prijs per GB en dataverkeer goedkoper dan S3, en data staat standaard in de EU, wat voor een Europese partij als SaxIT relevant kan zijn voor soevereiniteit/GDPR.
+Deze casus gebruikt AWS S3, dus dat houd ik aan. Voor mezelf gebruik ik voor opslag/CDN meestal [Bunny.net](https://bunny.net), een Sloveens (EU) bedrijf — qua prijs per GB en dataverkeer goedkoper dan AWS, en data staat standaard in de EU, wat voor een Europese partij als SaxIT relevant kan zijn voor soevereiniteit/GDPR.
 
 Bunny Storage heeft ook een S3-compatible API ([docs](https://bunny.net/docs/storage/s3)), dus qua protocol is het geen ander verhaal dan S3 zelf. Geen IAM-achtig policysysteem met fijnmazige rechten, wel een read-only en een write key per storage zone — daar kun je zelf iets omheen bouwen (zelfde idee als de aparte read-only pull-PAT die ik in mijn andere vak voor Docker Hub gebruik). Wat volgens de eigen docs wél ontbreekt: SSE/SSE-C-encryptie (botst met de BYOK-encryptie uit week 4), object versioning, en ACL's. Voor de beveiligde, auditbare opslag die deze casus vraagt is AWS op dit moment vollediger. Ik zou het SaxIT aanraden als iets om te evalueren voor losse, minder gevoelige opslag- of CDN-behoeften, niet als vervanging voor de security-kritieke dataflows uit deze casus.
