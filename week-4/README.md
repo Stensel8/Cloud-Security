@@ -2,7 +2,7 @@
 
 Dataclassificatie en S3-buckets per classificatie (4.1–4.2), een eigen (BYOK) KMS-sleutel voor de geheime bucket (4.3), logging en alerting op die bucket (4.4), de AWS Academy-labstof (4.5), en een advies over AVG en encryptie (4.6).
 
-> **Status:** "in klad". De Terraform in [`../terraform/data-protection.tf`](../terraform/data-protection.tf) is geschreven maar nog niet toegepast in het Learner Lab, dus overal nog **Nog te doen (bewijs)**.
+> **Status:** "in klad". De OpenTofu-code in [`../terraform/data-protection.tf`](../terraform/data-protection.tf) is geschreven maar nog niet toegepast in het Learner Lab, dus overal nog **Nog te doen (bewijs)**.
 
 ## 4.1 Dataclassificatie
 
@@ -56,11 +56,11 @@ aws s3api put-object --bucket saxit-data-geheim-<suffix> --key geheim-klantgegev
 
 **Hoe zorg ik dat een specifieke gebruiker alleen in bepaalde buckets mag schrijven?** Via een IAM-policy die, net als bij de RDS-rol in week 2.1, precies één of twee bucket-ARN's als `Resource` heeft in plaats van `*`. Bijvoorbeeld een rol voor de supportmedewerkers die alleen `s3:PutObject`/`s3:GetObject` mag op `saxit-data-intern-*`, en expliciet geen rechten op `saxit-data-geheim-*`. Dit kan ik in de Learner Lab niet aantonen (zelfde IAM-beperking als in week 2.1), maar het principe is identiek aan wat ik daar al heb uitgewerkt.
 
-**Nog te doen (bewijs):** `terraform apply`, screenshots van de drie buckets met hun encryptie-instelling, en een mislukte upload-poging (verkeerde tag of geen encryptie) die door de policy geweigerd wordt.
+**Nog te doen (bewijs):** `tofu apply`, screenshots van de drie buckets met hun encryptie-instelling, en een mislukte upload-poging (verkeerde tag of geen encryptie) die door de policy geweigerd wordt.
 
 ## 4.3 Bring your own key (BYOK) voor de geheime bucket
 
-Voor de geheime bucket gebruik ik een KMS-sleutel met eigen, zelf gegenereerd keymateriaal (`aws_kms_external_key` in Terraform, origin `EXTERNAL`) in plaats van een door AWS beheerde sleutel. Het keymateriaal zelf genereer ik lokaal, nooit in de AWS-console:
+Voor de geheime bucket gebruik ik een KMS-sleutel met eigen, zelf gegenereerd keymateriaal (`aws_kms_external_key` in OpenTofu, origin `EXTERNAL`) in plaats van een door AWS beheerde sleutel. Het keymateriaal zelf genereer ik lokaal, nooit in de AWS-console:
 
 ```bash
 # 1. Eigen 256-bit AES-sleutelmateriaal genereren met OpenSSL
@@ -112,7 +112,7 @@ resource "aws_cloudwatch_event_rule" "geheim_object_read" {
 }
 ```
 
-**Als Eventbridge een IAM-foutmelding geeft** (te weinig rechten, net als bij de IAM-rol in week 2.1): de rule zelf staat dan nog steeds correct in Terraform/de console, alleen de uiteindelijke koppeling met het SNS-target kan in de Learner Lab stuklopen op `iam:PassRole`/`events:PutTargets`-rechten. In dat geval laat ik met een screenshot van de EventBridge-rule-configuratie zien hóe ik de rule zou instellen, ook al werkt de laatste schakel niet in deze beperkte omgeving. Vergelijkbaar met wat ik in 2.1 ook al moest doen.
+**Als Eventbridge een IAM-foutmelding geeft** (te weinig rechten, net als bij de IAM-rol in week 2.1): de rule zelf staat dan nog steeds correct in OpenTofu/de console, alleen de uiteindelijke koppeling met het SNS-target kan in de Learner Lab stuklopen op `iam:PassRole`/`events:PutTargets`-rechten. In dat geval laat ik met een screenshot van de EventBridge-rule-configuratie zien hóe ik de rule zou instellen, ook al werkt de laatste schakel niet in deze beperkte omgeving. Vergelijkbaar met wat ik in 2.1 ook al moest doen.
 
 **Nog te doen (bewijs):** een download van een object uit de geheime bucket, een screenshot van de bijbehorende regel in het CloudTrail-logbestand, een screenshot van de ontvangen e-mail-alert (of van de EventBridge-configuratie als die laatste stap vastloopt op rechten), en een screenshot van het CloudWatch-dashboard.
 

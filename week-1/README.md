@@ -2,32 +2,35 @@
 
 Ik richt de initiële 3-tier infrastructuur in AWS in met het Terraform-script uit de module (`rds.tf` en `main.tf`), teken het netwerk, en schrijf twee adviezen voor SaxIT: het Shared Responsibility Model (1.2) en een bastion host (1.3).
 
-> **Status:** dit hoofdstuk staat nog "in klad". De Terraform-code in [`../terraform/`](../terraform/) is geschreven en overeenkomstig de handleiding (`Cloud Sec module launch begin environment V1.docx`) en het aangeleverde `main.tf`/`rds.tf`, maar is nog niet gedraaid in het AWS Learner Lab. Overal waar nog een screenshot of praktijkbewijs nodig is staat een **Nog te doen (bewijs):**-regel. Die vul ik aan zodra ik de omgeving daadwerkelijk heb uitgerold.
+**Terraform versus OpenTofu:** de module levert `main.tf`/`rds.tf` aan als HashiCorp Terraform-script. Ik draai dit zelf met **OpenTofu** in plaats van Terraform: dezelfde HCL-taal, dezelfde providers (ook gewoon `hashicorp/aws`), dus de `.tf`-bestanden zelf blijven identiek. Het enige verschil is welke CLI ik gebruik (`tofu` in plaats van `terraform`) en hoe ik die installeer (zie 1.1). Reden: OpenTofu is de open-source fork van Terraform en blijft dat ook, in tegenstelling tot Terraform zelf sinds de licentiewijziging van HashiCorp.
+
+> **Status:** dit hoofdstuk staat nog "in klad". De OpenTofu-code in [`../terraform/`](../terraform/) is geschreven en overeenkomstig de handleiding (`Cloud Sec module launch begin environment V1.docx`) en het aangeleverde `main.tf`/`rds.tf`, maar is nog niet gedraaid in het AWS Learner Lab. Overal waar nog een screenshot of praktijkbewijs nodig is staat een **Nog te doen (bewijs):**-regel. Die vul ik aan zodra ik de omgeving daadwerkelijk heb uitgerold.
 
 ## 1.1 Bootomgeving: de 3-tier infrastructuur
 
-De omgeving bestaat uit twee Terraform-scripts, precies zoals de handleiding voorschrijft:
+De omgeving bestaat uit twee OpenTofu-scripts, precies zoals de handleiding voorschrijft (die het over Terraform heeft, zie hierboven waarom ik voor OpenTofu koos):
 
-1. **[`rds-bootstrap/rds.tf`](../terraform/rds-bootstrap/rds.tf)** maakt een eigen VPC (`10.1.0.0/16`) met een MySQL RDS-instance erin. Dit script staat bewust in een eigen map, los van `main.tf`, en draait zonder remote backend. Na het aanmaken van de database noteer ik het endpoint en verwijder ik de lokale Terraform-state van dit script, zodat een latere `terraform destroy` op `main.tf` deze database nooit per ongeluk meeneemt. Zo raakt ook de pipeline van week 3 (3.3), die alleen `main.tf`/`bastion.tf` opnieuw uitrolt, deze map nooit aan.
+1. **[`rds-bootstrap/rds.tf`](../terraform/rds-bootstrap/rds.tf)** maakt een eigen VPC (`10.1.0.0/16`) met een MySQL RDS-instance erin. Dit script staat bewust in een eigen map, los van `main.tf`, en draait zonder remote backend. Na het aanmaken van de database noteer ik het endpoint en verwijder ik de lokale OpenTofu-state van dit script, zodat een latere `tofu destroy` op `main.tf` deze database nooit per ongeluk meeneemt. Zo raakt ook de pipeline van week 3 (3.3), die alleen `main.tf`/`bastion.tf` opnieuw uitrolt, deze map nooit aan.
 2. **[`main.tf`](../terraform/main.tf)** (plus [`bastion.tf`](../terraform/bastion.tf)) maakt de rest: een eigen VPC (`10.0.0.0/16`) met presentation- en applicationtier-subnets verspreid over twee availability zones, twee Application Load Balancers, vier EC2's (`web01`, `web02`, `app01`, `app02`) die bij het opstarten via `user_data` Docker installeren en mijn fork van de applicatie bouwen en draaien, en een VPC-peering naar de db-VPC van `rds.tf`.
 
 ### Stappen (AWS CloudShell)
 
 ```bash
-# 1. Keypair en S3-bucket voor de Terraform state eerst handmatig aanmaken in de AWS-console,
+# 1. Keypair en S3-bucket voor de OpenTofu state eerst handmatig aanmaken in de AWS-console,
 #    naam en bucket-URL in labnotes.txt zetten.
 
-# 2. Terraform installeren in CloudShell
-git clone https://github.com/tfutils/tfenv.git ~/.tfenv
+# 2. OpenTofu installeren in CloudShell (de handleiding gebruikt tfenv voor Terraform,
+#    ik gebruik het OpenTofu-equivalent: tofuenv)
+git clone https://github.com/tofuutils/tofuenv.git ~/.tofuenv
 mkdir ~/bin
-ln -s ~/.tfenv/bin/* ~/bin/
-tfenv install
-tfenv use 1.11.2
-terraform --version
+ln -s ~/.tofuenv/bin/* ~/bin/
+tofuenv install 1.13.2
+tofuenv use 1.13.2
+tofu --version
 
 # 3. Eerst alléén rds.tf draaien (los, geen backend)
-terraform init
-terraform apply
+tofu init
+tofu apply
 # -> endpoint van de RDS-instance noteren in labnotes.txt
 # -> daarna lokale .terraform/ en terraform.tfstate* van dit script verwijderen
 
@@ -35,16 +38,16 @@ terraform apply
 #    het db_vpc_id en de db route table id (bestaan na stap 3), en de RDS-endpoint in app01/app02.
 #    Zie de TODO/REPLACE_* markeringen in terraform/main.tf en terraform/bastion.tf.
 
-terraform init
-terraform apply
+tofu init
+tofu apply
 # -> minimaal 10 minuten wachten: de VM's installeren Docker en bouwen de containers bij het opstarten.
 ```
 
-**Nog te doen (bewijs):** `terraform apply`-output, de resource map van beide load balancers met status "healthy", en een screenshot van de werkende applicatie via de DNS-naam van de presentation-load-balancer.
+**Nog te doen (bewijs):** `tofu apply`-output, de resource map van beide load balancers met status "healthy", en een screenshot van de werkende applicatie via de DNS-naam van de presentation-load-balancer.
 
 ### Netwerktekening
 
-In plaats van Cloudcraft gebruik ik een Mermaid-diagram, zodat de tekening meteen in deze repository meekomt en meeverandert met de Terraform-code. De security groups en de CIDR-ranges staan in de tekening; mijn eigen IP-adres (in `bastion_sg`) laat ik later als screenshot zien, niet hier in platte tekst.
+In plaats van Cloudcraft gebruik ik een Mermaid-diagram, zodat de tekening meteen in deze repository meekomt en meeverandert met de OpenTofu-code. De security groups en de CIDR-ranges staan in de tekening; mijn eigen IP-adres (in `bastion_sg`) laat ik later als screenshot zien, niet hier in platte tekst.
 
 ```mermaid
 flowchart TB
@@ -142,6 +145,6 @@ ingress {
 }
 ```
 
-**Nog te doen (bewijs):** na `terraform apply`, een proef vanaf mijn eigen laptop: direct SSH'en naar `app01` moet mislukken (timeout), SSH via de bastion host (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) moet lukken. Screenshot van beide pogingen.
+**Nog te doen (bewijs):** na `tofu apply`, een proef vanaf mijn eigen laptop: direct SSH'en naar `app01` moet mislukken (timeout), SSH via de bastion host (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) moet lukken. Screenshot van beide pogingen.
 
 Bronnen: [AWS: wat is een bastion host](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/bastion-hosts.html), [SSH ProxyJump (OpenSSH)](https://www.ssh.com/academy/ssh/proxyjump).

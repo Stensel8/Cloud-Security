@@ -1,4 +1,7 @@
 terraform {
+  # Dit project draait op OpenTofu (zie week-1/README.md), niet op HashiCorp Terraform zelf. Dezelfde
+  # "terraform"-block-naam werkt in OpenTofu ook, voor compatibiliteit.
+  required_version = ">= 1.13.2"
   backend "s3" {
     bucket  = "REPLACE_WITH_YOUR_TFSTATE_BUCKET" # uit labnotes.txt, zie week-1/README.md
     key     = "terraform.tfstate"

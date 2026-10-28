@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [uitwerkingen]
   pull_request:
 
 # Follow the principle of least privilege: restrict permissions to what's needed.

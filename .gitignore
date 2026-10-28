@@ -24,7 +24,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Terraform
+# OpenTofu (gebruikt dezelfde lokale mapnamen als Terraform, voor compatibiliteit)
 .terraform/
 *.tfstate
 *.tfstate.*

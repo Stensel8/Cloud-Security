@@ -3,7 +3,7 @@
 ## Gemaakt
 - [x] 3.1 North-South: `applicationtier_sg` vernauwd tot poort 8080, alleen vanaf de presentationtier (`../terraform/main.tf`)
 - [x] 3.2 East-West: `rds_security_group` vernauwd tot de applicationtier-subnets (`../terraform/rds-bootstrap/rds.tf`)
-- [x] 3.3 GitHub Actions-pipeline voor Terraform toegevoegd (`../.github/workflows/terraform.yml`), met plan-only op pull requests
+- [x] 3.3 GitHub Actions-pipeline voor OpenTofu toegevoegd (`../.github/workflows/opentofu.yml`), met plan-only op pull requests
 - [x] 3.4 Advies infrastructure protection geschreven (micro segmentatie, North-South, immutable infra, network automation)
 
 ## Nog te doen

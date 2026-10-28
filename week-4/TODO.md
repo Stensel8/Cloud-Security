@@ -9,7 +9,7 @@
 - [x] 4.6 Advies AVG-koppeling en vergelijking encryptievormen geschreven
 
 ## Nog te doen
-- [ ] AWS Learner Lab: `terraform apply` met een unieke `bucket_suffix` en een echt e-mailadres voor de SNS-alert
+- [ ] AWS Learner Lab: `tofu apply` met een unieke `bucket_suffix` en een echt e-mailadres voor de SNS-alert
 - [ ] 4.2 Bewijs: de drie buckets met hun encryptie-instelling, en een geweigerde upload (verkeerde tag/geen encryptie)
 - [ ] 4.3 Bewijs: KMS-sleutel met status "Imported key material", en de encryptie-instelling van de geheime bucket die ernaar wijst
 - [ ] 4.4 Bewijs: CloudTrail-logregel van een download, de e-mail-alert (of de EventBridge-configuratie als die laatste stap op rechten vastloopt), en het CloudWatch-dashboard

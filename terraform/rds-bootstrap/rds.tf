@@ -1,4 +1,6 @@
 terraform {
+  # Draait op OpenTofu, niet op HashiCorp Terraform (zie week-1/README.md).
+  required_version = ">= 1.13.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"

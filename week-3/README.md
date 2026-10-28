@@ -2,7 +2,7 @@
 
 Ik verscherp de security groups uit week 1 op twee niveaus (north-south en east-west), zet immutable infrastructure op met een pipeline, en schrijf een advies over infrastructure protection (3.4).
 
-> **Status:** net als week 1 staat dit nog "in klad": de Terraform-wijzigingen staan in de code, maar zijn nog niet toegepast in het Learner Lab. **Nog te doen (bewijs):**-regels markeren wat ik nog moet aantonen.
+> **Status:** net als week 1 staat dit nog "in klad": de OpenTofu-wijzigingen staan in de code, maar zijn nog niet toegepast in het Learner Lab. **Nog te doen (bewijs):**-regels markeren wat ik nog moet aantonen.
 
 ## 3.1 North-South segmentatie
 
@@ -22,7 +22,7 @@ ingress {
 
 Een security-group-naar-security-group-regel in plaats van een CIDR-blok: zelfs als het IP-bereik van de presentationtier ooit verandert, blijft de regel kloppen, want hij volgt de security group, niet een IP-reeks.
 
-**Nog te doen (bewijs):** `terraform apply` met deze wijziging, daarna aantonen dat de applicatie nog steeds werkt via de presentation-load-balancer (zelfde test als in week 1), en dat een directe `curl` naar `app01:8080` vanaf buiten de `presentationtier_sg` nu wordt geweigerd.
+**Nog te doen (bewijs):** `tofu apply` met deze wijziging, daarna aantonen dat de applicatie nog steeds werkt via de presentation-load-balancer (zelfde test als in week 1), en dat een directe `curl` naar `app01:8080` vanaf buiten de `presentationtier_sg` nu wordt geweigerd.
 
 ## 3.2 East-West segmentatie (microsegmentatie)
 
@@ -42,40 +42,40 @@ ingress {
 
 Ik gebruik hier CIDR-blokken van de applicationtier-subnets in plaats van een verwijzing naar `applicationtier_sg` zelf: die security group staat in de andere, gepeerde VPC, en niet elke AWS-omgeving (zeker niet een Learner Lab) staat cross-VPC security-group-referenties via peering toe. Subnet-CIDR's zijn hier het betrouwbare alternatief en bereiken hetzelfde doel: alleen de app-servers mogen nog bij de database, de webservers (presentationtier) en de rest van het internet niet meer.
 
-**Nog te doen (bewijs):** opnieuw `terraform apply`, en aantonen (bijvoorbeeld met `mysql -h <rds-endpoint>` vanaf `app01` versus vanaf `web01`) dat alleen de applicationtier nog bij de database kan.
+**Nog te doen (bewijs):** opnieuw `tofu apply`, en aantonen (bijvoorbeeld met `mysql -h <rds-endpoint>` vanaf `app01` versus vanaf `web01`) dat alleen de applicationtier nog bij de database kan.
 
 ## 3.3 Immutable infrastructure via een pipeline
 
-Ik heb [`.github/workflows/terraform.yml`](../.github/workflows/terraform.yml) toegevoegd: bij elke wijziging in `terraform/*.tf` (dus `main.tf` en `bastion.tf`) draait de pipeline `terraform init`, `terraform plan`, en op `main` ook `terraform apply`. Op een pull request draait alleen `plan`, zodat een foute wijziging al opvalt vóór de merge, net als bij de applicatie-pipeline ([`build.yml`](../.github/workflows/build.yml)).
+Ik heb [`.github/workflows/opentofu.yml`](../.github/workflows/opentofu.yml) toegevoegd: bij elke wijziging in `terraform/*.tf` (dus `main.tf` en `bastion.tf`) draait de pipeline `tofu init`, `tofu plan`, en op `uitwerkingen` ook `tofu apply`. Op een pull request draait alleen `plan`, zodat een foute wijziging al opvalt vóór de merge, net als bij de applicatie-pipeline ([`build.yml`](../.github/workflows/build.yml)). De pipeline gebruikt OpenTofu (zie week 1), niet HashiCorp Terraform.
 
-`terraform/rds-bootstrap/` staat bewust buiten het werkpad van deze job (`working-directory: terraform`, en Terraform leest alleen `.tf`-bestanden in die ene map, niet in submappen). Zo raakt de pipeline de RDS-instance nooit aan, precies de uitzondering die de opdracht vraagt.
+`terraform/rds-bootstrap/` staat bewust buiten het werkpad van deze job (`working-directory: terraform`, en OpenTofu leest alleen `.tf`-bestanden in die ene map, niet in submappen). Zo raakt de pipeline de RDS-instance nooit aan, precies de uitzondering die de opdracht vraagt.
 
 ```yaml
 on:
   push:
-    branches: [main]
+    branches: [uitwerkingen]
     paths: ["terraform/*.tf"]
   pull_request:
     paths: ["terraform/*.tf"]
 
 jobs:
-  terraform:
+  opentofu:
     defaults:
       run:
         working-directory: terraform
     steps:
       - uses: actions/checkout@...
       - uses: aws-actions/configure-aws-credentials@...   # Learner Lab: tijdelijke sessie-credentials als secrets
-      - uses: hashicorp/setup-terraform@...
-      - run: terraform init
-      - run: terraform plan -input=false
-      - run: terraform apply -input=false -auto-approve
-        if: github.ref == 'refs/heads/main'
+      - uses: opentofu/setup-opentofu@...
+      - run: tofu init
+      - run: tofu plan -input=false
+      - run: tofu apply -input=false -auto-approve
+        if: github.ref == 'refs/heads/uitwerkingen'
 ```
 
 Een belangrijke beperking van een AWS Academy Learner Lab: de credentials zijn tijdelijk en verlopen na een paar uur. Dat betekent dat `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` en `AWS_SESSION_TOKEN` in de GitHub secrets ververst moeten worden telkens als ik een nieuwe labsessie start. In een echte productieomgeving zou dit met rollen en kortlevende, automatisch ververste credentials lopen (zie ook mijn advies in 3.4 en in week 2.3).
 
-**Nog te doen (bewijs):** een commit die een kleine wijziging in `terraform/main.tf` maakt, een screenshot van de geslaagde pipeline-run, en een `terraform plan` op een pull request die laat zien dat er niet automatisch wordt toegepast.
+**Nog te doen (bewijs):** een commit die een kleine wijziging in `terraform/main.tf` maakt, een screenshot van de geslaagde pipeline-run, en een `tofu plan` op een pull request die laat zien dat er niet automatisch wordt toegepast.
 
 ## 3.4 Advies: infrastructure protection voor SaxIT
 
@@ -87,7 +87,7 @@ Infrastructure protection draait om het beschermen van alles onder de applicatie
 
 **Immutable infrastructure.** Door de infrastructuur als code te beschrijven en bij elke wijziging automatisch opnieuw uit te rollen (3.3), voorkom ik "configuration drift": handmatige aanpassingen die iemand ooit op een server maakte en die nergens staan vastgelegd. Een gecompromitteerde of verkeerd geconfigureerde server vervang ik door opnieuw te deployen, in plaats van er met SSH doorheen te gaan spitten en te hopen dat ik alles terugvind. Dat is ook meteen een stuk sneller bij een incident (zie week 5).
 
-**Network automation.** Omdat dit alles in Terraform staat, is elke security-group-regel en elke subnet-indeling reviewbaar in een pull request, getest in een pipeline, en consistent tussen omgevingen. Een handmatige wijziging in de AWS-console die "even snel" een poort openzet, overleeft de volgende `terraform apply` niet. De code is de waarheid, niet de console.
+**Network automation.** Omdat dit alles in OpenTofu staat, is elke security-group-regel en elke subnet-indeling reviewbaar in een pull request, getest in een pipeline, en consistent tussen omgevingen. Een handmatige wijziging in de AWS-console die "even snel" een poort openzet, overleeft de volgende `tofu apply` niet. De code is de waarheid, niet de console.
 
 Mijn advies aan SaxIT: pas deze vier principes niet alleen toe op deze proefopstelling, maar maak ze onderdeel van hoe elke nieuwe omgeving wordt opgezet. Begin met het netwerk in lagen (micro segmentatie), trechter al het north-south verkeer door een klein aantal bewaakte punten (load balancer, bastion host), en leg de hele infrastructuur vast als code zodat niemand meer handmatig aan de productieomgeving hoeft te zitten.
 

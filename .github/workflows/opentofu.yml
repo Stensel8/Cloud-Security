@@ -1,11 +1,12 @@
-name: Terraform
+name: OpenTofu
 
 # Week 3, opdracht 3.3: immutable infrastructure. Elke wijziging in terraform/ (main.tf, bastion.tf - dus
 # NIET terraform/rds-bootstrap/, dat draait los en maar één keer, zie week-1/README.md) rolt een schone
 # deployment uit. Op een pull request alleen plan, zodat een foute wijziging opvalt vóór de merge.
+# Draait op OpenTofu (de open-source fork van Terraform), niet op HashiCorp Terraform zelf.
 on:
   push:
-    branches: [main]
+    branches: [uitwerkingen]
     paths: ["terraform/*.tf"]
   pull_request:
     paths: ["terraform/*.tf"]
@@ -15,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
+  opentofu:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,16 +32,16 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Learner Lab geeft tijdelijke credentials
           aws-region: us-east-1
 
-      - uses: hashicorp/setup-terraform@2accafbf21bca3667ce757527a2235a9f4e2d7f # v3.1.2
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          terraform_version: "1.11.2"
+          tofu_version: "1.13.2"
 
-      - run: terraform init
+      - run: tofu init
 
-      - name: Terraform plan
-        run: terraform plan -input=false
+      - name: OpenTofu plan
+        run: tofu plan -input=false
 
-      # Alleen op main daadwerkelijk toepassen, zodat een pull request nooit ongemerkt infrastructuur aanpast.
-      - name: Terraform apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform apply -input=false -auto-approve
+      # Alleen op uitwerkingen daadwerkelijk toepassen, zodat een pull request nooit ongemerkt infrastructuur aanpast.
+      - name: OpenTofu apply
+        if: github.ref == 'refs/heads/uitwerkingen'
+        run: tofu apply -input=false -auto-approve
