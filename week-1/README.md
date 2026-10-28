@@ -4,14 +4,22 @@ Ik richt de initiële 3-tier infrastructuur in AWS in met het Terraform-script u
 
 **Terraform versus OpenTofu:** de module levert `main.tf`/`rds.tf` aan als HashiCorp Terraform-script. Ik draai dit zelf met **OpenTofu** in plaats van Terraform: dezelfde HCL-taal, dezelfde providers (ook gewoon `hashicorp/aws`), dus de `.tf`-bestanden zelf blijven identiek. Het enige verschil is welke CLI ik gebruik (`tofu` in plaats van `terraform`) en hoe ik die installeer (zie 1.1). Reden: OpenTofu is de open-source fork van Terraform en blijft dat ook, in tegenstelling tot Terraform zelf sinds de licentiewijziging van HashiCorp.
 
-> **Status:** dit hoofdstuk staat nog "in klad". De OpenTofu-code in [`../terraform/`](../terraform/) is geschreven en overeenkomstig de handleiding (`Cloud Sec module launch begin environment V1.docx`) en het aangeleverde `main.tf`/`rds.tf`, maar is nog niet gedraaid in het AWS Learner Lab. Overal waar nog een screenshot of praktijkbewijs nodig is staat een **Nog te doen (bewijs):**-regel. Die vul ik aan zodra ik de omgeving daadwerkelijk heb uitgerold.
+> **Status:** dit hoofdstuk staat nog "in klad". De OpenTofu-code in [`../opentofu/`](../opentofu/) is geschreven en overeenkomstig de handleiding (`Cloud Sec module launch begin environment V1.docx`) en het aangeleverde `main.tf`/`rds.tf`, maar is nog niet gedraaid in het AWS Learner Lab. Overal waar nog een screenshot of praktijkbewijs nodig is staat een **Nog te doen (bewijs):**-regel. Die vul ik aan zodra ik de omgeving daadwerkelijk heb uitgerold.
 
 ## 1.1 Bootomgeving: de 3-tier infrastructuur
 
 De omgeving bestaat uit twee OpenTofu-scripts, precies zoals de handleiding voorschrijft (die het over Terraform heeft, zie hierboven waarom ik voor OpenTofu koos):
 
-1. **[`rds-bootstrap/rds.tf`](../terraform/rds-bootstrap/rds.tf)** maakt een eigen VPC (`10.1.0.0/16`) met een MySQL RDS-instance erin. Dit script staat bewust in een eigen map, los van `main.tf`, en draait zonder remote backend. Na het aanmaken van de database noteer ik het endpoint en verwijder ik de lokale OpenTofu-state van dit script, zodat een latere `tofu destroy` op `main.tf` deze database nooit per ongeluk meeneemt. Zo raakt ook de pipeline van week 3 (3.3), die alleen `main.tf`/`bastion.tf` opnieuw uitrolt, deze map nooit aan.
-2. **[`main.tf`](../terraform/main.tf)** (plus [`bastion.tf`](../terraform/bastion.tf)) maakt de rest: een eigen VPC (`10.0.0.0/16`) met presentation- en applicationtier-subnets verspreid over twee availability zones, twee Application Load Balancers, vier EC2's (`web01`, `web02`, `app01`, `app02`) die bij het opstarten via `user_data` Docker installeren en mijn fork van de applicatie bouwen en draaien, en een VPC-peering naar de db-VPC van `rds.tf`.
+1. **[`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf)** maakt een eigen VPC (`10.1.0.0/16`) met een MySQL RDS-instance erin. Dit script staat bewust in een eigen map, los van `main.tf`, en draait zonder remote backend. Na het aanmaken van de database noteer ik het endpoint en verwijder ik de lokale OpenTofu-state van dit script, zodat een latere `tofu destroy` op `main.tf` deze database nooit per ongeluk meeneemt. Zo raakt ook de pipeline van week 3 (3.3), die alleen `main.tf`/`bastion.tf` opnieuw uitrolt, deze map nooit aan.
+2. **[`main.tf`](../opentofu/main.tf)** (plus [`bastion.tf`](../opentofu/bastion.tf)) maakt de rest: een eigen VPC (`10.0.0.0/16`) met presentation- en applicationtier-subnets verspreid over twee availability zones, twee Application Load Balancers, vier EC2's (`web01`, `web02`, `app01`, `app02`) die bij het opstarten via `user_data` Docker installeren en mijn fork van de applicatie bouwen en draaien, en een VPC-peering naar de db-VPC van `rds.tf`.
+
+### Toegang tot de AWS Learner Lab
+
+Ik heb toegang tot de module via AWS Academy, en heb de Learner Lab-sessie gestart:
+
+<img src="images/aws-academy-dashboard.png" alt="AWS Academy dashboard met de cursussen AWS Academy Cloud Security Foundations en twee Learner Lab-instanties" width="720">
+
+<img src="images/learner-lab-start.png" alt="AWS Academy Learner Lab met de Start Lab-knop" width="720">
 
 ### Stappen (AWS CloudShell)
 
@@ -32,11 +40,11 @@ tofu --version
 tofu init
 tofu apply
 # -> endpoint van de RDS-instance noteren in labnotes.txt
-# -> daarna lokale .terraform/ en terraform.tfstate* van dit script verwijderen
+# -> daarna lokale .terraform/ en terraform.tfstate* van dit script verwijderen (OpenTofu's eigen vaste bestandsnamen, niet onze mapnaam)
 
 # 4. main.tf aanpassen: keyname, mijn eigen IP (bastion_sg), de S3-bucket voor de state,
 #    het db_vpc_id en de db route table id (bestaan na stap 3), en de RDS-endpoint in app01/app02.
-#    Zie de TODO/REPLACE_* markeringen in terraform/main.tf en terraform/bastion.tf.
+#    Zie de TODO/REPLACE_* markeringen in opentofu/main.tf en opentofu/bastion.tf.
 
 tofu init
 tofu apply
@@ -133,7 +141,7 @@ Voor deze casus verhoogt dat de veiligheid om een paar redenen:
 - **Eén plek om te monitoren en te patchen.** Loginpogingen, mislukte authenticaties en kwetsbaarheden in de SSH-daemon hoef ik nu nog maar op één machine in de gaten te houden, in plaats van op vier.
 - **Credentials blijven dichter bij huis.** Alleen de bastion host hoeft de private key te zien die ook echt gebruikt wordt om in te loggen; de andere VM's zijn alleen bereikbaar via die ene sprong.
 
-Ik heb dit toegepast in [`terraform/bastion.tf`](../terraform/bastion.tf): een losse `bastion_sg` die SSH alleen toestaat vanaf mijn eigen IP (`local.my_ip`), en een EC2-instance in de presentationtier-subnet die als enige poort naar binnen dient. In [`terraform/main.tf`](../terraform/main.tf) heb ik de SSH-ingress-regel van `presentationtier_sg` en `applicationtier_sg` aangepast van een open CIDR-blok (`0.0.0.0/0`) naar een verwijzing naar `bastion_sg.id` (security-group-naar-security-group, geen CIDR meer). Daarmee kan niemand, ook ikzelf niet, nog rechtstreeks met SSH bij `web01/web02/app01/app02` komen: alleen via de bastion host.
+Ik heb dit toegepast in [`opentofu/bastion.tf`](../opentofu/bastion.tf): een losse `bastion_sg` die SSH alleen toestaat vanaf mijn eigen IP (`local.my_ip`), en een EC2-instance in de presentationtier-subnet die als enige poort naar binnen dient. In [`opentofu/main.tf`](../opentofu/main.tf) heb ik de SSH-ingress-regel van `presentationtier_sg` en `applicationtier_sg` aangepast van een open CIDR-blok (`0.0.0.0/0`) naar een verwijzing naar `bastion_sg.id` (security-group-naar-security-group, geen CIDR meer). Daarmee kan niemand, ook ikzelf niet, nog rechtstreeks met SSH bij `web01/web02/app01/app02` komen: alleen via de bastion host.
 
 ```hcl
 ingress {

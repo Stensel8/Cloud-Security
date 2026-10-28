@@ -15,7 +15,8 @@ provider "aws" {
 
 # Let op (zie week-1/README.md): dit script draait op zichzelf, los van main.tf, en zonder remote backend.
 # Na het aanmaken van de RDS-instance en het noteren van het endpoint verwijder je de lokale state van dit
-# script (inclusief terraform.tfstate), zodat een latere "terraform destroy" op main.tf deze database nooit
+# script (inclusief terraform.tfstate, de standaard lokale state-bestandsnaam die OpenTofu ook gebruikt),
+# zodat een latere "tofu destroy" op main.tf deze database nooit
 # per ongeluk meeneemt.
 
 ###################################################

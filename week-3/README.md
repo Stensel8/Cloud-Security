@@ -8,7 +8,7 @@ Ik verscherp de security groups uit week 1 op twee niveaus (north-south en east-
 
 North-South verkeer is verkeer dat de grens van mijn datacenter/VPC oversteekt: van buiten naar binnen en andersom. In de beginsituatie (week 1) stond de `applicationtier_sg` nog open voor de hele poortrange 80-9000 vanaf `0.0.0.0/0`, overgenomen uit de aangeleverde module-baseline, maar veel ruimer dan nodig. De applicatie heeft alleen poort 8080 nodig, en alleen de presentation-load-balancer praat met de applicationtier, nooit het publieke internet rechtstreeks.
 
-In [`terraform/main.tf`](../terraform/main.tf) heb ik dat vernauwd tot precies dat:
+In [`opentofu/main.tf`](../opentofu/main.tf) heb ik dat vernauwd tot precies dat:
 
 ```hcl
 ingress {
@@ -28,7 +28,7 @@ Een security-group-naar-security-group-regel in plaats van een CIDR-blok: zelfs 
 
 East-West verkeer is verkeer tussen servers onderling, binnen de infrastructuur. In de beginsituatie stond `rds_security_group` nog open voor MySQL (3306) vanaf `0.0.0.0/0`, puur omdat de VPC-peering nog niet bestond toen `rds.tf` voor het eerst los gedraaid werd. Dat is nooit aangepast.
 
-In [`terraform/rds-bootstrap/rds.tf`](../terraform/rds-bootstrap/rds.tf) heb ik dat beperkt tot alleen de twee applicationtier-subnets:
+In [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf) heb ik dat beperkt tot alleen de twee applicationtier-subnets:
 
 ```hcl
 ingress {
@@ -46,23 +46,23 @@ Ik gebruik hier CIDR-blokken van de applicationtier-subnets in plaats van een ve
 
 ## 3.3 Immutable infrastructure via een pipeline
 
-Ik heb [`.github/workflows/opentofu.yml`](../.github/workflows/opentofu.yml) toegevoegd: bij elke wijziging in `terraform/*.tf` (dus `main.tf` en `bastion.tf`) draait de pipeline `tofu init`, `tofu plan`, en op `uitwerkingen` ook `tofu apply`. Op een pull request draait alleen `plan`, zodat een foute wijziging al opvalt vóór de merge, net als bij de applicatie-pipeline ([`build.yml`](../.github/workflows/build.yml)). De pipeline gebruikt OpenTofu (zie week 1), niet HashiCorp Terraform.
+Ik heb [`.github/workflows/opentofu.yml`](../.github/workflows/opentofu.yml) toegevoegd: bij elke wijziging in `opentofu/*.tf` (dus `main.tf` en `bastion.tf`) draait de pipeline `tofu init`, `tofu plan`, en op `uitwerkingen` ook `tofu apply`. Op een pull request draait alleen `plan`, zodat een foute wijziging al opvalt vóór de merge, net als bij de applicatie-pipeline ([`build.yml`](../.github/workflows/build.yml)). De pipeline gebruikt OpenTofu (zie week 1), niet HashiCorp Terraform.
 
-`terraform/rds-bootstrap/` staat bewust buiten het werkpad van deze job (`working-directory: terraform`, en OpenTofu leest alleen `.tf`-bestanden in die ene map, niet in submappen). Zo raakt de pipeline de RDS-instance nooit aan, precies de uitzondering die de opdracht vraagt.
+`opentofu/rds-bootstrap/` staat bewust buiten het werkpad van deze job (`working-directory: opentofu`, en OpenTofu leest alleen `.tf`-bestanden in die ene map, niet in submappen). Zo raakt de pipeline de RDS-instance nooit aan, precies de uitzondering die de opdracht vraagt.
 
 ```yaml
 on:
   push:
     branches: [uitwerkingen]
-    paths: ["terraform/*.tf"]
+    paths: ["opentofu/*.tf"]
   pull_request:
-    paths: ["terraform/*.tf"]
+    paths: ["opentofu/*.tf"]
 
 jobs:
   opentofu:
     defaults:
       run:
-        working-directory: terraform
+        working-directory: opentofu
     steps:
       - uses: actions/checkout@...
       - uses: aws-actions/configure-aws-credentials@...   # Learner Lab: tijdelijke sessie-credentials als secrets
@@ -75,7 +75,11 @@ jobs:
 
 Een belangrijke beperking van een AWS Academy Learner Lab: de credentials zijn tijdelijk en verlopen na een paar uur. Dat betekent dat `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` en `AWS_SESSION_TOKEN` in de GitHub secrets ververst moeten worden telkens als ik een nieuwe labsessie start. In een echte productieomgeving zou dit met rollen en kortlevende, automatisch ververste credentials lopen (zie ook mijn advies in 3.4 en in week 2.3).
 
-**Nog te doen (bewijs):** een commit die een kleine wijziging in `terraform/main.tf` maakt, een screenshot van de geslaagde pipeline-run, en een `tofu plan` op een pull request die laat zien dat er niet automatisch wordt toegepast.
+De drie secrets staan inmiddels in de repository (Settings → Secrets and variables → Actions). GitHub laat de waarde van een secret nooit meer zien nadat je hem hebt opgeslagen, alleen de naam en wanneer hij voor het laatst is bijgewerkt — dus deze screenshot verraadt niks, alleen dát ze er zijn:
+
+<img src="images/github-actions-secrets-aangemaakt.png" alt="GitHub Actions secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY en AWS_SESSION_TOKEN aangemaakt" width="720">
+
+**Nog te doen (bewijs):** een commit die een kleine wijziging in `opentofu/main.tf` maakt, een screenshot van de geslaagde pipeline-run, en een `tofu plan` op een pull request die laat zien dat er niet automatisch wordt toegepast.
 
 ## 3.4 Advies: infrastructure protection voor SaxIT
 

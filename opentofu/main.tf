@@ -4,7 +4,7 @@ terraform {
   required_version = ">= 1.13.2"
   backend "s3" {
     bucket  = "REPLACE_WITH_YOUR_TFSTATE_BUCKET" # uit labnotes.txt, zie week-1/README.md
-    key     = "terraform.tfstate"
+    key     = "opentofu.tfstate"
     region  = "us-east-1"
     encrypt = true
   }

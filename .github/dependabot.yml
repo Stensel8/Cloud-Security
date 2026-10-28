@@ -37,8 +37,8 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 20
 
-  - package-ecosystem: "terraform"
-    directory: "/terraform"
+  - package-ecosystem: "terraform" # GitHub heeft geen apart "opentofu"-ecosysteem; deze waarde werkt ook voor OpenTofu's .tf-bestanden
+    directory: "/opentofu"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 20

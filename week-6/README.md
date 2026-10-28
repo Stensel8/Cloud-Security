@@ -16,7 +16,7 @@ resource "aws_kinesis_stream" "docker_logs" {
 }
 ```
 
-Op elke VM (toe te voegen aan de `user_data` in `terraform/main.tf`, of achteraf handmatig via de bastion host):
+Op elke VM (toe te voegen aan de `user_data` in `opentofu/main.tf`, of achteraf handmatig via de bastion host):
 
 ```bash
 sudo yum install -y aws-kinesis-agent   # of apt-get op Ubuntu, via het juiste repo

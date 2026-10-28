@@ -8,7 +8,7 @@ locals {
 
 ###################################################
 # 4.3: eigen (BYOK) KMS-sleutel voor de geheime bucket.
-# Het sleutelmateriaal zelf genereer je met OpenSSL en importeer je los met de AWS CLI (geen Terraform-
+# Het sleutelmateriaal zelf genereer je met OpenSSL en importeer je los met de AWS CLI (geen OpenTofu-
 # resource voor de import zelf, dat is een eenmalige, stateful actie) - zie week-4/README.md voor de stappen.
 resource "aws_kms_external_key" "geheim_byok" {
   description             = "BYOK-sleutel (eigen keymateriaal) voor de S3-bucket met geheime documenten"

@@ -1,7 +1,7 @@
 # Week 2, opdracht 2.1: IAM-authenticatie naar RDS, zodat app01/app02 geen databasewachtwoord meer nodig
 # hebben. In het AWS Learner Lab mag een student geen rollen/policies aanmaken (zie week-2/README.md) - deze
 # resources zijn dus de beschrijving van wat ik zou aanmaken in een omgeving met voldoende rechten, en falen
-# in de Learner Lab met een AccessDenied bij "terraform apply". Dat sluit expliciet aan bij wat de opdracht
+# in de Learner Lab met een AccessDenied bij "tofu apply". Dat sluit expliciet aan bij wat de opdracht
 # vraagt: de stappen laten zien, ook als de definitieve apply een rode foutmelding geeft.
 
 resource "aws_iam_role" "app_tier_role" {
@@ -26,7 +26,7 @@ resource "aws_iam_policy" "rds_connect_policy" {
       Effect   = "Allow"
       Action   = "rds-db:connect"
       # cloudsecdb staat in de losse state van rds-bootstrap/ (zie week-1/README.md), dus een "data" lookup
-      # op naam in plaats van een directe resource-referentie uit een ander Terraform-project.
+      # op naam in plaats van een directe resource-referentie uit een ander OpenTofu-project.
       Resource = "arn:aws:rds-db:us-east-1:${data.aws_caller_identity.current.account_id}:dbuser:${data.aws_db_instance.cloudsecdb.resource_id}/app_iam_user"
     }]
   })

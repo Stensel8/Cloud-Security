@@ -10,9 +10,9 @@ In de Learner Lab-module heb ik geen rechten om IAM-rollen of policies aan te ma
 
 Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
-1. **IAM-rol en policy** ([`terraform/iam.tf`](../terraform/iam.tf)): een rol `app-tier-rds-iam-role` die EC2 mag aannemen, met een policy die alleen `rds-db:connect` toestaat, en dat ook nog eens afgebakend tot precies één database-gebruiker (`app_iam_user`) op precies deze RDS-instance. Geen bredere RDS- of AWS-rechten.
-2. **Instance profile**: die rol wordt gekoppeld aan `app01` en `app02` via `iam_instance_profile` (zie de toevoeging in [`terraform/main.tf`](../terraform/main.tf)). Dat is de brug tussen een IAM-rol en een EC2-instance.
-3. **IAM-authenticatie aanzetten op de RDS-instance**: `iam_database_authentication_enabled = true` in [`terraform/rds-bootstrap/rds.tf`](../terraform/rds-bootstrap/rds.tf).
+1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): een rol `app-tier-rds-iam-role` die EC2 mag aannemen, met een policy die alleen `rds-db:connect` toestaat, en dat ook nog eens afgebakend tot precies één database-gebruiker (`app_iam_user`) op precies deze RDS-instance. Geen bredere RDS- of AWS-rechten.
+2. **Instance profile**: die rol wordt gekoppeld aan `app01` en `app02` via `iam_instance_profile` (zie de toevoeging in [`opentofu/main.tf`](../opentofu/main.tf)). Dat is de brug tussen een IAM-rol en een EC2-instance.
+3. **IAM-authenticatie aanzetten op de RDS-instance**: `iam_database_authentication_enabled = true` in [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf).
 4. **Een databasegebruiker die IAM-tokens accepteert**, aangemaakt via SQL (geen OpenTofu-resource voor MySQL-gebruikers binnen RDS zelf):
    ```sql
    CREATE USER 'app_iam_user'@'%' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';

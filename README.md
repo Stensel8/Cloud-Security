@@ -13,7 +13,7 @@ Frontend: http://localhost:3000, backend: http://localhost:8080/api/products.
 
 ## Cloud Security - Casus SaxIT
 
-Mijn uitwerking van de Cloud Security-module. Deze applicatie draait in een 3-tier opzet op AWS (zie [`terraform/`](terraform/)), die ik week voor week verder beveilig. De originele opdrachten/slides van school staan in [`school docs/`](school%20docs/); elke week-map heeft naast de uitwerking (`README.md`) ook een `TODO.md` met wat er nog gedaan moet worden.
+Mijn uitwerking van de Cloud Security-module. Deze applicatie draait in een 3-tier opzet op AWS (zie [`opentofu/`](opentofu/)), die ik week voor week verder beveilig. De originele opdrachten/slides van school staan in [`school docs/`](school%20docs/); elke week-map heeft naast de uitwerking (`README.md`) ook een `TODO.md` met wat er nog gedaan moet worden.
 
 De infrastructuurcode gebruikt [OpenTofu](https://opentofu.org/) in plaats van HashiCorp Terraform: dezelfde taal en providers, maar open source gebleven. Zie [week 1](week-1/README.md) voor waarom.
 

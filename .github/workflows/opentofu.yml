@@ -1,15 +1,15 @@
 name: OpenTofu
 
-# Week 3, opdracht 3.3: immutable infrastructure. Elke wijziging in terraform/ (main.tf, bastion.tf - dus
-# NIET terraform/rds-bootstrap/, dat draait los en maar één keer, zie week-1/README.md) rolt een schone
+# Week 3, opdracht 3.3: immutable infrastructure. Elke wijziging in opentofu/ (main.tf, bastion.tf - dus
+# NIET opentofu/rds-bootstrap/, dat draait los en maar één keer, zie week-1/README.md) rolt een schone
 # deployment uit. Op een pull request alleen plan, zodat een foute wijziging opvalt vóór de merge.
 # Draait op OpenTofu (de open-source fork van Terraform), niet op HashiCorp Terraform zelf.
 on:
   push:
     branches: [uitwerkingen]
-    paths: ["terraform/*.tf"]
+    paths: ["opentofu/*.tf"]
   pull_request:
-    paths: ["terraform/*.tf"]
+    paths: ["opentofu/*.tf"]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: terraform
+        working-directory: opentofu
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

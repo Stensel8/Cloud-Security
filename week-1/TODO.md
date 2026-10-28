@@ -1,13 +1,14 @@
 # Week 1 - status
 
 ## Gemaakt
-- [x] 1.1 OpenTofu-code geschreven volgens de handleiding (`../terraform/main.tf`, `bastion.tf`, `rds-bootstrap/rds.tf`)
+- [x] 1.1 OpenTofu-code geschreven volgens de handleiding (`../opentofu/main.tf`, `bastion.tf`, `rds-bootstrap/rds.tf`)
 - [x] 1.1 Netwerktekening (Mermaid-diagram) in README.md
 - [x] 1.2 Advies Shared Responsibility Model geschreven
 - [x] 1.3 Advies bastion host geschreven + daadwerkelijk in OpenTofu verwerkt (`bastion.tf`, SSH-regels aangepast)
+- [x] AWS Learner Lab-sessie gestart, toegang bevestigd (screenshots in `images/`)
 
 ## Nog te doen
-- [ ] AWS Learner Lab opzetten: keypair aanmaken, S3-bucket voor de OpenTofu-state, `labnotes.txt` bijhouden
+- [ ] AWS Learner Lab verder opzetten: keypair aanmaken, S3-bucket voor de OpenTofu-state, `labnotes.txt` bijhouden
 - [ ] `rds-bootstrap/rds.tf` los draaien, endpoint noteren, lokale state daarna verwijderen
 - [ ] `REPLACE_WITH_*`-placeholders in `main.tf`/`bastion.tf` invullen (keyname, eigen IP, db-vpc-id, db-route-table-id, rds-endpoint, state-bucket, lab-profile)
 - [ ] `tofu apply` draaien, minimaal 10 min wachten

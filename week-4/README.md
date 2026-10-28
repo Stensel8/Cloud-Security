@@ -2,7 +2,7 @@
 
 Dataclassificatie en S3-buckets per classificatie (4.1–4.2), een eigen (BYOK) KMS-sleutel voor de geheime bucket (4.3), logging en alerting op die bucket (4.4), de AWS Academy-labstof (4.5), en een advies over AVG en encryptie (4.6).
 
-> **Status:** "in klad". De OpenTofu-code in [`../terraform/data-protection.tf`](../terraform/data-protection.tf) is geschreven maar nog niet toegepast in het Learner Lab, dus overal nog **Nog te doen (bewijs)**.
+> **Status:** "in klad". De OpenTofu-code in [`../opentofu/data-protection.tf`](../opentofu/data-protection.tf) is geschreven maar nog niet toegepast in het Learner Lab, dus overal nog **Nog te doen (bewijs)**.
 
 ## 4.1 Dataclassificatie
 
@@ -24,7 +24,7 @@ Per categorie, concrete maatregelen in de cloudomgeving:
 
 ## 4.2 Drie buckets, één per classificatie
 
-In [`terraform/data-protection.tf`](../terraform/data-protection.tf) staan drie buckets (`saxit-data-openbaar-*`, `saxit-data-intern-*`, `saxit-data-geheim-*`), elk met:
+In [`opentofu/data-protection.tf`](../opentofu/data-protection.tf) staan drie buckets (`saxit-data-openbaar-*`, `saxit-data-intern-*`, `saxit-data-geheim-*`), elk met:
 
 - **Standaardencryptie verplicht**: SSE-S3 voor openbaar/intern, SSE-KMS met de eigen sleutel uit 4.3 voor geheim.
 - **Een bucket policy die twee dingen afdwingt**: (1) een upload zonder de juiste `x-amz-server-side-encryption`-header wordt geweigerd, en (2) een object zonder de `classificatie`-tag die bij déze bucket hoort, wordt ook geweigerd. Zo kan een geheim bestand niet per ongeluk (of expres) als "openbaar" getagd in de verkeerde bucket belanden.
@@ -87,13 +87,13 @@ aws kms import-key-material \
 shred -u plaintext-key.bin
 ```
 
-Daarna verwijst de `aws_s3_bucket_server_side_encryption_configuration` van de geheime bucket naar deze sleutel (`kms_master_key_id = aws_kms_external_key.geheim_byok.arn`), zie [`terraform/data-protection.tf`](../terraform/data-protection.tf).
+Daarna verwijst de `aws_s3_bucket_server_side_encryption_configuration` van de geheime bucket naar deze sleutel (`kms_master_key_id = aws_kms_external_key.geheim_byok.arn`), zie [`opentofu/data-protection.tf`](../opentofu/data-protection.tf).
 
 **Nog te doen (bewijs):** screenshot van de KMS-sleutel in de AWS-console met status "Imported key material", en van de encryptie-instelling van de geheime bucket die naar die sleutel wijst.
 
 ## 4.4 Logging en alerting op de geheime bucket
 
-In [`terraform/data-protection.tf`](../terraform/data-protection.tf):
+In [`opentofu/data-protection.tf`](../opentofu/data-protection.tf):
 
 - Een **CloudTrail-trail** die specifiek **data events** (object-niveau, niet alleen management-events) logt voor de geheime bucket: elke `GetObject`, `PutObject`, etc. op dat ene bucket.
 - Een **EventBridge-rule** die matcht op `GetObject`-events via CloudTrail voor die bucket, en die doorstuurt naar een **SNS-topic** met een e-mail-abonnement. Dus een e-mail bij elke download van een geheim object.

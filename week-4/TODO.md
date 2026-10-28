@@ -2,7 +2,7 @@
 
 ## Gemaakt
 - [x] 4.1 Dataclassificatie uitgewerkt (Openbaar/Intern/Geheim, met maatregelen per categorie)
-- [x] 4.2 Terraform voor drie buckets, encryptie, bucket-policies (encryptie + classificatietag verplicht) (`../terraform/data-protection.tf`)
+- [x] 4.2 OpenTofu voor drie buckets, encryptie, bucket-policies (encryptie + classificatietag verplicht) (`../opentofu/data-protection.tf`)
 - [x] 4.2 Demobestanden per classificatie klaargezet (`demo-files/`)
 - [x] 4.3 BYOK-procedure (OpenSSL + KMS-import) beschreven + `aws_kms_external_key`
 - [x] 4.4 CloudTrail (data events), EventBridge-rule, SNS-topic en CloudWatch-dashboard geschreven
