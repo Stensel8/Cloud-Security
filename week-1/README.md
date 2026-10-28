@@ -45,6 +45,8 @@ Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik i
 
 Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving kies ik Account Regional namespace in plaats van Global namespace: AWS plakt er automatisch een account-specifieke suffix achter, wat de bucketnaam lastiger te gokken maakt voor scanners die bekende naampatronen afgaan. Dat is een extra laag bovenop Block Public Access (staat aan), niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) noteer ik in `labnotes.txt`, en die gaat straks in de `bucket`-waarde van het `backend "s3"`-blok in `main.tf`.
 
+Rest van de instellingen laat ik op de AWS-standaard staan: Object Ownership op "ACLs disabled", Block all public access aan, en SSE-S3-encryptie met Bucket Key aan. Versioning zet ik niet aan, niet nodig voor dit project.
+
 ### Stappen (AWS CloudShell)
 
 ```bash
