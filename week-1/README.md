@@ -35,7 +35,7 @@ Eerst een eigen EC2-keypair voor dit project, via EC2 → Key Pairs:
 
 <img src="images/ec2-keypair-aanmaken.png" alt="Create key pair-formulier: naam Cloud-Security (550600), type ED25519, formaat .pem" width="720">
 
-Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik in `labnotes.txt`, want die heb ik later nodig in het OpenTofu-script. De private key bewaar ik lokaal, niet in de repository.
+Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik in `labnotes.txt`. De private key bewaar ik lokaal, niet in de repository.
 
 ### S3-bucket voor de OpenTofu state
 
@@ -43,15 +43,25 @@ Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik i
 
 <img src="images/s3-bucket-aanmaken.png" alt="Create bucket-formulier: prefix 550600-cloudsec-tfstate, Account Regional namespace, regio us-east-1" width="720">
 
-Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving kies ik Account Regional namespace in plaats van Global namespace: AWS plakt er automatisch een account-specifieke suffix achter, wat de bucketnaam lastiger te gokken maakt voor scanners die bekende naampatronen afgaan. Dat is een extra laag bovenop Block Public Access (staat aan), niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) noteer ik in `labnotes.txt`, en die gaat straks in de `bucket`-waarde van het `backend "s3"`-blok in `main.tf`.
+Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving kies ik Account Regional namespace in plaats van Global namespace: AWS plakt er automatisch een account-specifieke suffix achter, wat de bucketnaam lastiger te gokken maakt voor scanners die bekende naampatronen afgaan. Dat is een extra laag bovenop Block Public Access (staat aan), niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) noteer ik in `labnotes.txt`.
 
 Rest van de instellingen laat ik op de AWS-standaard staan: Object Ownership op "ACLs disabled", Block all public access aan, en SSE-S3-encryptie met Bucket Key aan. Versioning zet ik niet aan, niet nodig voor dit project.
+
+### Variabelen en secrets: nooit in main.tf zelf
+
+Keypair-naam, bucketnaam, account-ID en mijn eigen IP horen niet in een publieke repository. Die staan daarom alleen in bestanden die in `.gitignore` staan:
+
+- `labnotes.txt` (repo-root): de menselijke notities die de handleiding vraagt.
+- `opentofu/terraform.tfvars` en `opentofu/rds-bootstrap/terraform.tfvars`: dezelfde waardes, in de vorm die OpenTofu zelf leest. `main.tf`/`rds.tf` verwijzen alleen naar `var.*` (zie [`variables.tf`](../opentofu/variables.tf)), nooit naar een letterlijke waarde.
+- `opentofu/backend.hcl`: alleen de bucketnaam voor de S3-backend. Dat kan niet via een gewone variabele, want OpenTofu moet de backend al kennen vóór het de rest van de variabelen inleest.
+
+Voor elk van deze drie staat er een `.example`-bestand wél in git, zodat de vorm duidelijk is zonder mijn eigen waardes prijs te geven.
 
 ### Stappen (AWS CloudShell)
 
 ```bash
 # 1. Keypair en S3-bucket voor de OpenTofu state eerst handmatig aanmaken in de AWS-console,
-#    naam en bucket-URL in labnotes.txt zetten.
+#    waardes in labnotes.txt en in opentofu/terraform.tfvars + opentofu/backend.hcl zetten.
 
 # 2. OpenTofu installeren in CloudShell (de handleiding gebruikt tfenv voor Terraform,
 #    ik gebruik het OpenTofu-equivalent: tofuenv)
@@ -63,16 +73,15 @@ tofuenv use 1.13.2
 tofu --version
 
 # 3. Eerst alléén rds.tf draaien (los, geen backend)
+cd opentofu/rds-bootstrap
 tofu init
 tofu apply
-# -> endpoint van de RDS-instance noteren in labnotes.txt
+# -> endpoint, db_vpc_id en route table id noteren in labnotes.txt en in opentofu/terraform.tfvars
 # -> daarna lokale .terraform/ en terraform.tfstate* van dit script verwijderen (OpenTofu's eigen vaste bestandsnamen, niet onze mapnaam)
 
-# 4. main.tf aanpassen: keyname, mijn eigen IP (bastion_sg), de S3-bucket voor de state,
-#    het db_vpc_id en de db route table id (bestaan na stap 3), en de RDS-endpoint in app01/app02.
-#    Zie de TODO/REPLACE_* markeringen in opentofu/main.tf en opentofu/bastion.tf.
-
-tofu init
+# 4. main.tf gebruikt nu overal var.* in plaats van REPLACE_WITH_*-placeholders (zie hierboven)
+cd ../
+tofu init -backend-config=backend.hcl
 tofu apply
 # -> minimaal 10 minuten wachten: de VM's installeren Docker en bouwen de containers bij het opstarten.
 ```

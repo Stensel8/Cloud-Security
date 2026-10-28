@@ -10,7 +10,7 @@ terraform {
 }
 provider "aws" {
   region  = "us-east-1"
-  profile = "REPLACE_WITH_YOUR_LAB_PROFILE" # AWS Academy Learner Lab account-ID, uit labnotes.txt
+  profile = var.lab_profile
 }
 
 # Let op (zie week-1/README.md): dit script draait op zichzelf, los van main.tf, en zonder remote backend.

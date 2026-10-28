@@ -2,8 +2,9 @@ terraform {
   # Dit project draait op OpenTofu (zie week-1/README.md), niet op HashiCorp Terraform zelf. Dezelfde
   # "terraform"-block-naam werkt in OpenTofu ook, voor compatibiliteit.
   required_version = ">= 1.13.2"
+  # bucket staat expres niet hier (dat zou het account-ID in de bucketnaam in git zetten). Die komt uit
+  # backend.hcl, een lokaal, niet-gecommit bestand: "tofu init -backend-config=backend.hcl". Zie week-1/README.md.
   backend "s3" {
-    bucket  = "REPLACE_WITH_YOUR_TFSTATE_BUCKET" # uit labnotes.txt, zie week-1/README.md
     key     = "opentofu.tfstate"
     region  = "us-east-1"
     encrypt = true
@@ -17,14 +18,13 @@ terraform {
 }
 provider "aws" {
   region  = "us-east-1"
-  profile = "REPLACE_WITH_YOUR_LAB_PROFILE" # AWS Academy Learner Lab account-ID, uit labnotes.txt
+  profile = var.lab_profile
 }
 ###################################################
-# Variabelen
+# Variabelen - echte waardes staan in terraform.tfvars (niet gecommit, zie variables.tf en labnotes.txt)
 locals {
-  sshkey = "REPLACE_WITH_YOUR_KEYPAIR_NAME" # uit labnotes.txt
-  # Alleen dit IP-adres mag met SSH bij de bastion host (zie week-1 1.3). Vul in als CIDR, bv. "1.2.3.4/32".
-  my_ip = "REPLACE_WITH_YOUR_IP/32"
+  sshkey = var.sshkey
+  my_ip  = "${var.my_ip}/32" # alleen dit IP-adres mag met SSH bij de bastion host (zie week-1 1.3)
 }
 ###################################################
 # Create a standard VPC
@@ -50,7 +50,7 @@ resource "aws_internet_gateway" "saxit_gw" {
 # vpc_id van de db-VPC: pas aan na het draaien van rds.tf (zie week-1/README.md, stap "DB-VPC peeren").
 resource "aws_vpc_peering_connection" "dbpeer" {
   vpc_id      = aws_vpc.saxit_vpc.id
-  peer_vpc_id = "REPLACE_WITH_DB_VPC_ID" # output van rds.tf: aws_vpc.saxit_vpc_db.id
+  peer_vpc_id = var.db_vpc_id # output van rds.tf: aws_vpc.saxit_vpc_db.id
   auto_accept = true
 }
 ###################################################
@@ -73,7 +73,7 @@ resource "aws_route_table" "pres-route" {
 # Create routing table for db VPC
 # route_table_id: de route table van de db-VPC, bestaat al na het draaien van rds.tf.
 resource "aws_route" "dbroute" {
-  route_table_id            = "REPLACE_WITH_DB_ROUTE_TABLE_ID" # bestaande route table van de db-VPC
+  route_table_id            = var.db_route_table_id # bestaande route table van de db-VPC
   destination_cidr_block    = "10.0.0.0/16"
   vpc_peering_connection_id = aws_vpc_peering_connection.dbpeer.id
 }
@@ -317,7 +317,7 @@ resource "aws_instance" "app01" {
   git clone https://github.com/Stensel8/Cloud-Security.git
   cd /Cloud-Security/backend
   sudo docker build -t backend .
-  sudo docker run --restart always -e SPRING_DATASOURCE_URL=jdbc:mysql://REPLACE_WITH_RDS_ENDPOINT/cloudsecdb -e SPRING_DATASOURCE_USERNAME=admin -e SPRING_DATASOURCE_PASSWORD=password123 -p 8080:8080 -d backend
+  sudo docker run --restart always -e SPRING_DATASOURCE_URL=jdbc:mysql://${var.rds_endpoint}/cloudsecdb -e SPRING_DATASOURCE_USERNAME=admin -e SPRING_DATASOURCE_PASSWORD=password123 -p 8080:8080 -d backend
   EOF
   key_name  = local.sshkey
   tags = {
@@ -352,7 +352,7 @@ resource "aws_instance" "app02" {
   git clone https://github.com/Stensel8/Cloud-Security.git
   cd /Cloud-Security/backend
   sudo docker build -t backend .
-  sudo docker run --restart always -e SPRING_DATASOURCE_URL=jdbc:mysql://REPLACE_WITH_RDS_ENDPOINT/cloudsecdb -e SPRING_DATASOURCE_USERNAME=admin -e SPRING_DATASOURCE_PASSWORD=password123 -p 8080:8080 -d backend
+  sudo docker run --restart always -e SPRING_DATASOURCE_URL=jdbc:mysql://${var.rds_endpoint}/cloudsecdb -e SPRING_DATASOURCE_USERNAME=admin -e SPRING_DATASOURCE_PASSWORD=password123 -p 8080:8080 -d backend
   EOF
   key_name  = local.sshkey
   tags = {

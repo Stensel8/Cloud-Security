@@ -31,6 +31,10 @@ yarn-error.log*
 .terraform.lock.hcl
 labnotes.txt
 *.pem
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
 
 # Python (week 6 log-analysescript)
 .venv/

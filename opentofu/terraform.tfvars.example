@@ -1,0 +1,11 @@
+# Kopieer naar terraform.tfvars (wordt niet gecommit) en vul je eigen waardes in.
+# Zie labnotes.txt voor waar je deze vandaan haalt.
+
+lab_profile = "REPLACE_WITH_YOUR_LAB_PROFILE" # AWS Academy Learner Lab account-ID
+sshkey      = "REPLACE_WITH_YOUR_KEYPAIR_NAME"
+my_ip       = "REPLACE_WITH_YOUR_IP" # zonder /32, dat zet main.tf er zelf achter
+
+# Pas vullen nadat rds-bootstrap/rds.tf gedraaid is:
+# db_vpc_id         = "REPLACE_WITH_DB_VPC_ID"
+# db_route_table_id = "REPLACE_WITH_DB_ROUTE_TABLE_ID"
+# rds_endpoint      = "REPLACE_WITH_RDS_ENDPOINT"
