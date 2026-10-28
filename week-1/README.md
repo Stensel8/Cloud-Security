@@ -6,8 +6,6 @@ Ik richt de initiële 3-tier infrastructuur in AWS in met het Terraform-script u
 
 **AWS-provider-versie:** de module pint `hashicorp/aws` op `3.66.0`. Ik gebruik zelf de actuele `6.70.0` (Dependabot had dit al voorgesteld, zie [PR #133](https://github.com/Stensel8/Cloud-Security/pull/133)). Tussen v3 en v6 zijn er echte breaking changes; de enige die mijn code echt raakte was `aws_db_instance`: het argument `name` heette vanaf v5 `db_name` ([upgradegids](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade)). Dat heb ik aangepast in [`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf), en meteen ook een expliciete `identifier = "cloudsecdb"` toegevoegd (stond er nog niet in, waardoor de data-lookup in `iam.tf` nooit de juiste instance zou vinden).
 
-> **Status:** dit hoofdstuk staat nog "in klad". De OpenTofu-code in [`../opentofu/`](../opentofu/) is geschreven en overeenkomstig de handleiding (`Cloud Sec module launch begin environment V1.docx`) en het aangeleverde `main.tf`/`rds.tf`, maar is nog niet gedraaid in het AWS Learner Lab. Overal waar nog een screenshot of praktijkbewijs nodig is staat een **Nog te doen (bewijs):**-regel. Die vul ik aan zodra ik de omgeving daadwerkelijk heb uitgerold.
-
 ## 1.1 Bootomgeving: de 3-tier infrastructuur
 
 De omgeving bestaat uit twee OpenTofu-scripts, precies zoals de handleiding voorschrijft (die het over Terraform heeft, zie hierboven waarom ik voor OpenTofu koos):

@@ -2,8 +2,6 @@
 
 Dataclassificatie en S3-buckets per classificatie (4.1–4.2), een eigen (BYOK) KMS-sleutel voor de geheime bucket (4.3), logging en alerting op die bucket (4.4), de AWS Academy-labstof (4.5), en een advies over AVG en encryptie (4.6).
 
-> **Status:** "in klad". De OpenTofu-code in [`../opentofu/data-protection.tf`](../opentofu/data-protection.tf) is geschreven maar nog niet toegepast in het Learner Lab, dus overal nog **Nog te doen (bewijs)**.
-
 ## 4.1 Dataclassificatie
 
 | Classificatie | Voorbeelden (voor SaxIT's CMDB) | Motivatie |

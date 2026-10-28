@@ -2,8 +2,6 @@
 
 Ik verscherp de security groups uit week 1 op twee niveaus (north-south en east-west), zet immutable infrastructure op met een pipeline, en schrijf een advies over infrastructure protection (3.4).
 
-> **Status:** net als week 1 staat dit nog "in klad": de OpenTofu-wijzigingen staan in de code, maar zijn nog niet toegepast in het Learner Lab. **Nog te doen (bewijs):**-regels markeren wat ik nog moet aantonen.
-
 ## 3.1 North-South segmentatie
 
 North-South verkeer is verkeer dat de grens van mijn datacenter/VPC oversteekt: van buiten naar binnen en andersom. In de beginsituatie (week 1) stond de `applicationtier_sg` nog open voor de hele poortrange 80-9000 vanaf `0.0.0.0/0`, overgenomen uit de aangeleverde module-baseline, maar veel ruimer dan nodig. De applicatie heeft alleen poort 8080 nodig, en alleen de presentation-load-balancer praat met de applicationtier, nooit het publieke internet rechtstreeks.

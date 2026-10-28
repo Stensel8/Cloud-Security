@@ -2,8 +2,6 @@
 
 In de beginsituatie staat het databasewachtwoord van `cloudsecdb` in platte tekst in `user_data` van `app01` en `app02` (zichtbaar voor iedereen die EC2-instance-metadata van die VM kan lezen, en zichtbaar in het OpenTofu-bestand zelf). Ik beschrijf hoe ik dat zonder wachtwoord oplos met IAM-authenticatie (2.1), doe de AWS Academy-labstof (2.2), en schrijf een advies over least privilege en Entra ID (2.3).
 
-> **Status:** "in klad". 2.1 is een beschrijving + OpenTofu-code die in een gewone AWS-omgeving zou werken, maar in het Learner Lab vastloopt op een AccessDenied (precies wat de opdracht ook verwacht). 2.2 moet ik zelf nog doen in de AWS Academy-module.
-
 ## 2.1 IAM-authenticatie naar RDS in plaats van een wachtwoord
 
 In de Learner Lab-module heb ik geen rechten om IAM-rollen of policies aan te maken (`iam:CreateRole`, `iam:CreatePolicy` staan niet toe op een studentenaccount). Dat betekent dat ik de stappen hieronder wél kan voorbereiden en in de AWS-console kan proberen uit te voeren, maar dat de definitieve `tofu apply` een rode `AccessDenied`-foutmelding geeft. Dat is ook precies wat de opdracht vraagt: de stappen laten zien, ondanks de foutmelding.

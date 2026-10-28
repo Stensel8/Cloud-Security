@@ -2,8 +2,6 @@
 
 Centrale logging met Kinesis (6.1), advies over de AWS-detectiediensten (6.2), de AWS Academy-labstof (6.3), Security Hub met malwarescan (6.4), en een log-analyse van SSH-brute-force-pogingen met Python en IsolationForest (6.5).
 
-> **Status:** "in klad". 6.1 en 6.4 hebben een draaiend Learner Lab nodig en staan hier als ontwerp + **Nog te doen (bewijs)**. 6.5 heb ik echt uitgevoerd, zie hieronder inclusief de uitvoer.
-
 ## 6.1 Centrale logging met Kinesis
 
 Ik maak een Kinesis Data Stream aan en installeer op alle vier de VM's (`web01`, `web02`, `app01`, `app02`) de Amazon Kinesis Agent, geconfigureerd om de Docker-logs van de containers naar die stream te sturen.
