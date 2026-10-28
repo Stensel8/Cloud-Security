@@ -25,6 +25,24 @@ Eenmaal gestart (timer loopt) geeft de lab tijdelijke AWS-credentials via "AWS D
 
 <img src="images/learner-lab-cloud-access.png" alt="AWS Academy Learner Lab met de tijdelijke CLI-credentials, credentials-blok afgeschermd" width="500">
 
+### AWS CLI lokaal + lab-credentials verversen
+
+Ik werk niet in CloudShell maar lokaal, met OpenTofu en de AWS CLI op mijn eigen laptop:
+
+<img src="images/aws-cli-installeren.png" alt="AWS CLI installeren via pacman op Arch Linux" width="720">
+
+Een Learner Lab-sessie geeft tijdelijke credentials die na een paar uur verlopen. Account-ID en regio vind ik terug onder "AWS Details":
+
+<img src="images/lab-account-id-regio.png" alt="AWS Details-paneel met AWSAccountId 142585515293 en Region us-east-1" width="400">
+
+Om die credentials niet elke keer met de hand in `~/.aws/credentials` te zetten, heb ik [`setup/lab-login.sh`](../setup/lab-login.sh) geschreven: het script vraagt de Access Key ID, Secret Access Key en Session Token op uit "AWS Details" → "Cloud Access", zet ze onder het juiste profiel, en test de verbinding meteen met `aws sts get-caller-identity`.
+
+<img src="images/lab-login-script-prompts.png" alt="Terminal met setup/lab-login.sh: prompts voor account-ID, keys en regio" width="500">
+
+<img src="images/lab-login-script-geslaagd.png" alt="Terminal met geslaagde get-caller-identity output: account 142585515293, rol voclabs" width="600">
+
+Secret Access Key en Session Token worden niet op het scherm getoond tijdens het typen (`read -s`). Voor hulp bij dit script heb ik Claude Sonnet 5 gebruikt; uitleg erover staat in [`setup/README.md`](../setup/README.md).
+
 ### Keypair aanmaken
 
 Eerst een eigen EC2-keypair voor dit project, via EC2 → Key Pairs:
