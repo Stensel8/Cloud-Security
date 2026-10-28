@@ -37,6 +37,14 @@ Eerst een eigen EC2-keypair voor dit project, via EC2 → Key Pairs:
 
 Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik in `labnotes.txt`, want die heb ik later nodig in het OpenTofu-script. De private key bewaar ik lokaal, niet in de repository.
 
+### S3-bucket voor de OpenTofu state
+
+<img src="images/s3-buckets-leeg.png" alt="S3-console, nog geen buckets, Create bucket wordt aangeklikt" width="720">
+
+<img src="images/s3-bucket-aanmaken.png" alt="Create bucket-formulier: prefix 550600-cloudsec-tfstate, Account Regional namespace, regio us-east-1" width="720">
+
+Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving kies ik Account Regional namespace in plaats van Global namespace: AWS plakt er automatisch een account-specifieke suffix achter, wat de bucketnaam lastiger te gokken maakt voor scanners die bekende naampatronen afgaan. Dat is een extra laag bovenop Block Public Access (staat aan), niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) noteer ik in `labnotes.txt`, en die gaat straks in de `bucket`-waarde van het `backend "s3"`-blok in `main.tf`.
+
 ### Stappen (AWS CloudShell)
 
 ```bash
