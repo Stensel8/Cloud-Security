@@ -23,3 +23,18 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+labnotes.txt
+
+# Python (week 6 log-analysescript)
+.venv/
+__pycache__/
+*.pyc
+
+# Schoolmateriaal (pptx/docx van school, niet voor de publieke repo)
+/school docs/

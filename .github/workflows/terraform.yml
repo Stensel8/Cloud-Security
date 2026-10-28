@@ -1,0 +1,46 @@
+name: Terraform
+
+# Week 3, opdracht 3.3: immutable infrastructure. Elke wijziging in terraform/ (main.tf, bastion.tf - dus
+# NIET terraform/rds-bootstrap/, dat draait los en maar één keer, zie week-1/README.md) rolt een schone
+# deployment uit. Op een pull request alleen plan, zodat een foute wijziging opvalt vóór de merge.
+on:
+  push:
+    branches: [main]
+    paths: ["terraform/*.tf"]
+  pull_request:
+    paths: ["terraform/*.tf"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Configure AWS credentials (Learner Lab)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.3.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Learner Lab geeft tijdelijke credentials
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@2accafbf21bca3667ce757527a2235a9f4e2d7f # v3.1.2
+        with:
+          terraform_version: "1.11.2"
+
+      - run: terraform init
+
+      - name: Terraform plan
+        run: terraform plan -input=false
+
+      # Alleen op main daadwerkelijk toepassen, zodat een pull request nooit ongemerkt infrastructuur aanpast.
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -input=false -auto-approve

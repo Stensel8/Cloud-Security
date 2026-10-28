@@ -1,0 +1,11 @@
+VOORBEELD - Geheim: klantgegevens CMDB-systeem (niet echte data)
+
+Klant: Voorbeeld B.V.
+Contactpersoon: J. Jansen
+E-mail: j.jansen@voorbeeld.example
+Asset-inventaris: [vertrouwelijk, bedrijfsgevoelige infrastructuurgegevens van de klant]
+
+Dit is een voorbeeld van "Geheim" geclassificeerde data: persoonsgegevens en bedrijfsgevoelige
+klantinformatie. Een lek hiervan is een AVG-datalek (zie week 7.3) en kan direct schade
+toebrengen aan klanten van SaxIT. Vereist de sterkste beveiliging: eigen KMS-sleutel (4.3),
+encryptie verplicht, en logging + alert op elke download (4.4).

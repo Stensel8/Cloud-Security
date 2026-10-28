@@ -1,0 +1,5 @@
+Interne personeelsplanning Q1 - SaxIT DevOps-team
+
+Dit is een voorbeeld van "Intern" geclassificeerde data: informatie die alleen voor medewerkers
+van SaxIT bestemd is (planningen, interne processen, niet-gevoelige bedrijfsinformatie). Geen
+directe schade bij een klein lek, maar niet bedoeld voor het publiek of klanten.
