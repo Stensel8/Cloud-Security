@@ -44,7 +44,7 @@ export default function UpdateProductForm() {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, updateProduct]);
 
   if (notFound) {
     return <NotFound />;

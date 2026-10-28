@@ -32,7 +32,7 @@ export default function ProductDetail() {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, updateProduct]);
 
   if (notFound) {
     return <NotFound />;
