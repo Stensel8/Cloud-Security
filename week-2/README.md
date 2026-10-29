@@ -4,14 +4,14 @@ In de beginsituatie staat het databasewachtwoord van `cloudsecdb` in platte teks
 
 ## 2.1 IAM-authenticatie naar RDS in plaats van een wachtwoord
 
-In de Learner Lab-module heb ik geen rechten om IAM-rollen of policies aan te maken (`iam:CreateRole`, `iam:CreatePolicy` staan niet toe op een studentenaccount). Dat betekent dat ik de stappen hieronder wél kan voorbereiden en in de AWS-console kan proberen uit te voeren, maar dat de definitieve `tofu apply` een rode `AccessDenied`-foutmelding geeft. Dat is ook precies wat de opdracht vraagt: de stappen laten zien, ondanks de foutmelding.
+In de Learner Lab-module heb ik geen rechten om IAM-rollen of policies aan te maken (`iam:CreateRole`, `iam:CreatePolicy` staan niet toe op een studentenaccount). Dat betekent dat ik de stappen hieronder wél kan voorbereiden en in de AWS-console kan proberen uit te voeren, maar dat de definitieve `tofu apply` een rode `AccessDenied`-foutmelding geeft. Dat is ook precies wat de opdracht vraagt: de stappen laten zien, ondanks de foutmelding. Overzicht van wat wel/niet mag in de Lab staat in [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
 
 Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
-1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): een rol `app-tier-rds-iam-role` die EC2 mag aannemen, met een policy die alleen `rds-db:connect` toestaat, en dat ook nog eens afgebakend tot precies één database-gebruiker (`app_iam_user`) op precies deze RDS-instance. Geen bredere RDS- of AWS-rechten.
-2. **Instance profile**: die rol wordt gekoppeld aan `app01` en `app02` via `iam_instance_profile` (zie de toevoeging in [`opentofu/main.tf`](../opentofu/main.tf)). Dat is de brug tussen een IAM-rol en een EC2-instance.
+1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): een rol `app-tier-rds-iam-role` die EC2 mag aannemen, met een policy die alleen `rds-db:connect` toestaat, en dat ook nog eens afgebakend tot precies één database-gebruiker (`app_iam_user`) op precies deze RDS-instance. Geen bredere RDS- of AWS-rechten. Faalt met `AccessDenied` bij `tofu apply`, zoals hierboven beschreven.
+2. **Instance profile**: die rol zou ik koppelen aan `app01` en `app02` via `iam_instance_profile`. In de praktijk draaien `app01`/`app02` nu met de voorgedefinieerde `LabInstanceProfile` (data-lookup in `opentofu/iam.tf`, zie [`opentofu/main.tf`](../opentofu/main.tf)) — dat mag een student wél koppelen, in tegenstelling tot een eigen rol. Voor échte IAM-authenticatie naar RDS (stap 4/5 hieronder) zou de policy achter `LabRole` `rds-db:connect` moeten toestaan; dat kon ik niet verifiëren omdat ik het policy-document van `LabRole` zelf niet mag inzien (ook een Lab-beperking, zie de tabel in setup/README.md).
 3. **IAM-authenticatie aanzetten op de RDS-instance**: `iam_database_authentication_enabled = true` in [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf).
-4. **Een databasegebruiker die IAM-tokens accepteert**, aangemaakt via SQL (geen OpenTofu-resource voor MySQL-gebruikers binnen RDS zelf):
+4. **Een databasegebruiker die IAM-tokens accepteert**, aangemaakt via SQL (geen OpenTofu-resource voor MariaDB-gebruikers binnen RDS zelf):
    ```sql
    CREATE USER 'app_iam_user'@'%' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';
    GRANT SELECT, INSERT, UPDATE, DELETE ON cloudsecdb.* TO 'app_iam_user'@'%';

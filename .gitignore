@@ -29,6 +29,7 @@ yarn-error.log*
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+tfplan
 labnotes.txt
 *.pem
 *.tfvars

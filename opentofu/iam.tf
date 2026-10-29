@@ -3,6 +3,16 @@
 # resources zijn dus de beschrijving van wat ik zou aanmaken in een omgeving met voldoende rechten, en falen
 # in de Learner Lab met een AccessDenied bij "tofu apply". Dat sluit expliciet aan bij wat de opdracht
 # vraagt: de stappen laten zien, ook als de definitieve apply een rode foutmelding geeft.
+#
+# Dat iam:CreateRole geblokkeerd is, betekent niet dat app01/app02 zonder instance profile moeten draaien: de
+# Learner Lab heeft een voorgedefinieerde "LabRole"/"LabInstanceProfile" staan die een student wél aan een
+# EC2-instance mag koppelen (geverifieerd met "aws ec2 run-instances --iam-instance-profile
+# Name=LabInstanceProfile --dry-run" -> "Request would have succeeded"). Dat is de AWS Academy-manier om
+# compute IAM-permissies te geven; main.tf gebruikt daarom onderstaande data-lookup op app01/app02, niet de
+# (altijd falende) aws_iam_instance_profile.app_tier_profile hierboven.
+data "aws_iam_instance_profile" "lab" {
+  name = "LabInstanceProfile"
+}
 
 resource "aws_iam_role" "app_tier_role" {
   name = "app-tier-rds-iam-role"

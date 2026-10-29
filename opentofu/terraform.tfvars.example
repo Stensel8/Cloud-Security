@@ -4,6 +4,8 @@
 lab_profile = "REPLACE_WITH_YOUR_LAB_PROFILE" # AWS Academy Learner Lab account-ID
 sshkey      = "REPLACE_WITH_YOUR_KEYPAIR_NAME"
 my_ip       = "REPLACE_WITH_YOUR_IP" # zonder /32, dat zet main.tf er zelf achter
+# bucket_suffix en alert_email staan niet meer hier: die zijn nu argumenten van
+# week-4/scripts/data-protection-setup.sh, niet van OpenTofu. Zie week-4/README.md.
 
 # Pas vullen nadat rds-bootstrap/rds.tf gedraaid is:
 # db_vpc_id         = "REPLACE_WITH_DB_VPC_ID"

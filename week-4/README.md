@@ -33,7 +33,7 @@ statement {
   sid    = "DenyWrongClassificationTag"
   effect = "Deny"
   actions   = ["s3:PutObject"]
-  resources = ["${each.value.bucket.arn}/*"]
+  resources = ["${each.value.bucket_arn}/*"]
   condition {
     test     = "StringNotEquals"
     variable = "s3:RequestObjectTag/classificatie"
@@ -41,6 +41,8 @@ statement {
   }
 }
 ```
+
+**Lab-eigenaardigheid bij `tofu apply`:** de buckets worden gewoon aangemaakt, maar OpenTofu/de AWS-provider geeft er een rode foutmelding bij ("reading ... object lock configuration: AccessDenied"). Dat komt door een Service Control Policy op organisatieniveau die `s3:GetBucketObjectLockConfiguration` blokkeert — een legacy/computed attribuut dat de provider automatisch probeert uit te lezen na het aanmaken, los van wat er in deze `.tf`-bestanden staat. De bucket en alle resources die ervan afhangen (policy, encryptie, public-access-block) werken gewoon; alleen die ene leesactie faalt, bij elke `plan`/`apply` opnieuw. Zie de tabel in [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
 
 Drie demobestanden staan al klaar in [`demo-files/`](demo-files/): [`openbaar-persbericht.txt`](demo-files/openbaar-persbericht.txt), [`intern-personeelsplanning.txt`](demo-files/intern-personeelsplanning.txt) en [`geheim-klantgegevens.txt`](demo-files/geheim-klantgegevens.txt) (met nepdata, geen echte klantgegevens). Die upload ik met de bijbehorende tag:
 

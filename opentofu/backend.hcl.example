@@ -1,1 +1,2 @@
-bucket = "REPLACE_WITH_YOUR_TFSTATE_BUCKET"
+bucket  = "REPLACE_WITH_YOUR_TFSTATE_BUCKET"
+profile = "REPLACE_WITH_YOUR_LAB_PROFILE" # backend-config kan geen var.lab_profile gebruiken, dus los hier

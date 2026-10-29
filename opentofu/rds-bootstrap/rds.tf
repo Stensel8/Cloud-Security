@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "6.70.0"
+      version = "6.71.0"
     }
   }
 }
@@ -67,7 +67,7 @@ resource "aws_db_subnet_group" "my_db_subnet_group" {
 # een andere (gepeerde) VPC; CIDR's van de applicationtier-subnets zijn hier het betrouwbare alternatief.
 resource "aws_security_group" "rdssecuritygroup" {
   name        = "rds_security_group"
-  description = "Allow inbound MySQL alleen vanaf de applicationtier, en all outbound traffic"
+  description = "Allow inbound MariaDB alleen vanaf de applicationtier, en all outbound traffic"
   vpc_id      = aws_vpc.saxit_vpc_db.id
   tags = {
     Name = "rds_security_group"
@@ -95,10 +95,14 @@ resource "aws_db_instance" "cloudsecdb" {
   # db_name = de naam van de database/schema binnen de engine. Allebei "cloudsecdb", maar twee
   # verschillende dingen - vóór provider v5 heette db_name nog "name", wat met v6.70.0 (zie README) niet
   # meer werkt: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade
+  # engine = mariadb i.p.v. mysql: backend/pom.xml draait al op de mariadb-java-client driver en compose.yml
+  # (lokale dev) draait al op het mariadb-image - de AWS-kant was dus de afwijkende uitzondering, niet
+  # omgekeerd. IAM-authenticatie (regel hieronder) werkt ook op MariaDB, vanaf 10.6.5:
+  # https://aws.amazon.com/about-aws/whats-new/2022/02/amazon-rds-mariadb-iam-authentication
   identifier                          = "cloudsecdb"
   db_name                             = "cloudsecdb"
   allocated_storage                   = 10
-  engine                              = "mysql"
+  engine                              = "mariadb"
   instance_class                      = "db.t3.micro"
   username                            = "admin"
   password                            = "password123" # TODO week 2 (2.1): vervangen door IAM-authenticatie, zie week-2/README.md
