@@ -7,3 +7,6 @@
 
 ## Nog te doen
 Geen, dit hoofdstuk is volledig deskresearch en vraagt geen AWS-omgeving. Alleen nog even nalezen/polijsten in de laatste ronde.
+
+---
+Hier houd ik bij wat ik nog moet doen.

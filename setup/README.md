@@ -1,6 +1,6 @@
 # Setup
 
-Dit is mijn eigen, herschreven versie van de install guide van school (`school docs/handleiding/Cloud Sec module launch begin environment V1.docx`, origineel `main.tf`/`rds.tf` staan in dezelfde map). Stap voor stap hoe ik de omgeving vanaf nul opzet. De weekopdrachten zelf (en het bewijs) staan in `week-1/` t/m `week-7/`; dit is puur de installatiehandleiding.
+Eigen, herschreven versie van de install guide van school (`school docs/handleiding/Cloud Sec module launch begin environment V1.docx`, origineel `main.tf`/`rds.tf` in dezelfde map). Stap voor stap hoe ik de omgeving vanaf nul opzet. Weekopdrachten + bewijs staan in `week-1/` t/m `week-7/`; dit is puur de installatiehandleiding.
 
 ## Wat ik anders doe dan de handleiding
 
@@ -12,7 +12,7 @@ Dit is mijn eigen, herschreven versie van de install guide van school (`school d
 
 ## Lab-credentials verversen
 
-Een AWS Academy Learner Lab-sessie verloopt na een paar uur — daarna werken de CLI-credentials niet meer en moet je nieuwe ophalen. Ik gebruik daarvoor een eigen scriptje, [`setup/lab-login.sh`](lab-login.sh): het vraagt interactief om de credentials, zet ze in `~/.aws/credentials` onder het juiste profiel, en test meteen de verbinding met `aws sts get-caller-identity`.
+Een Learner Lab-sessie verloopt na een paar uur. [`setup/lab-login.sh`](lab-login.sh) vraagt interactief om nieuwe credentials, zet ze in `~/.aws/credentials`, test meteen met `aws sts get-caller-identity`.
 
 ```bash
 ./setup/lab-login.sh
@@ -39,13 +39,13 @@ Voor hulp bij het schrijven van dit script heb ik Claude Sonnet 5 gebruikt (met 
 1. AWS Academy Learner Lab starten.
 2. `./setup/lab-login.sh` draaien (zie hierboven).
 3. EC2 → Key Pairs → eigen keypair aanmaken, naam in `labnotes.txt`.
-4. Eigen bucket aanmaken voor de OpenTofu state, naam in `labnotes.txt`. Dit is bewust geen Terraform/OpenTofu-resource (kip-en-ei-probleem: OpenTofu kan niet de bucket beheren waar het zijn eigen state in bewaart), dus gewoon los via de CLI:
+4. Eigen bucket voor de OpenTofu state, naam in `labnotes.txt`. Bewust geen OpenTofu-resource (kip-en-ei: OpenTofu kan niet de bucket beheren waar het zijn eigen state in bewaart), dus los via de CLI:
 
 ```bash
 aws s3api create-bucket --bucket <unieke-naam> --region us-east-1 --profile <lab_profile> --bucket-namespace account-regional
 ```
 
-**`--bucket-namespace account-regional` is nodig** zodra de bucketnaam het patroon `prefix-accountId-regio-an` volgt (zoals hier: `...-142585515293-us-east-1-an`) - AWS introduceerde "Account Regional Namespaces" voor S3 pas rond maart 2026, en een bucketnaam die toevallig aan dat patroon voldoet vereist sindsdien deze header, anders volgt `MissingNamespaceHeader`. Zie de [AWS-aankondiging](https://aws.amazon.com/blogs/aws/introducing-account-regional-namespaces-for-amazon-s3-general-purpose-buckets).
+**`--bucket-namespace account-regional` is nodig** zodra de bucketnaam het patroon `prefix-accountId-regio-an` volgt — AWS introduceerde Account Regional Namespaces voor S3 rond maart 2026, zonder deze header volgt `MissingNamespaceHeader`. Zie de [AWS-aankondiging](https://aws.amazon.com/blogs/aws/introducing-account-regional-namespaces-for-amazon-s3-general-purpose-buckets).
 
 <img src="images/tfstate-bucket-aangemaakt.png" alt="Terminal met geslaagde create-bucket output: Location en BucketArn van de state-bucket" width="700">
 
@@ -80,7 +80,7 @@ tofu apply
 
 ## Wat wel/niet mag in de Learner Lab
 
-Een paar dingen liepen vast tijdens het draaien van `main.tf`/`iam.tf`/`data-protection.tf` doordat de Learner Lab-omgeving bewust beperkt is. Verzameld hier, zodat ik (of iemand anders) het niet opnieuw hoeft uit te zoeken per week:
+Een paar dingen liepen vast door de bewuste Learner Lab-beperkingen. Verzameld hier zodat ik het niet per week opnieuw hoef uit te zoeken:
 
 | Actie | Mag het? | Toelichting |
 |---|---|---|
@@ -90,30 +90,30 @@ Een paar dingen liepen vast tijdens het draaien van `main.tf`/`iam.tf`/`data-pro
 | S3-bucket aanmaken, policy/encryptie/public-access-block erop zetten | ✅ Ja | |
 | Object lock-configuratie van een S3-bucket uitlezen (`s3:GetBucketObjectLockConfiguration`) | ❌ Nee | Expliciete deny via een **Service Control Policy op organisatieniveau** (AWS Academy/Vocareum-account), dus niet op te lossen met IAM-rechten op je eigen rol. De `aws_s3_bucket`-resource in de AWS-provider probeert dit automatisch uit te lezen na het aanmaken (legacy/computed attribuut), waardoor `tofu apply`/`plan` een foutmelding geeft op buckets die in werkelijkheid gewoon zijn aangemaakt. Zie [week-4/README.md](../week-4/README.md) en `opentofu/data-protection.tf`. |
 
-**Gevolg hiervan voor `tofu apply`/`destroy` op `main.tf` (belangrijk, kost anders tijd):** dit speelde toen de buckets nog gewone OpenTofu-resources waren. Inmiddels staan ze in [`week-4/scripts/data-protection-setup.sh`](../week-4/scripts/data-protection-setup.sh) (zie [week-4/README.md](../week-4/README.md#42-drie-buckets-één-per-classificatie)), dus een gewone `tofu apply`/`destroy` op `main.tf` raakt dit probleem nu niet meer. Staat hier nog als achtergrond, voor het geval iemand het liever via OpenTofu zelf zou doen:
+**Gevolg voor `tofu apply`/`destroy` op `main.tf`:** speelde toen de buckets nog gewone OpenTofu-resources waren. Staan nu in [`week-4/scripts/data-protection-setup.sh`](../week-4/scripts/data-protection-setup.sh) (zie [week-4/README.md](../week-4/README.md#42-drie-buckets-één-per-classificatie)), dus `main.tf` raakt dit niet meer. Blijft hier staan als achtergrond, voor wie het via OpenTofu zelf wil doen:
 
-- **`tofu destroy`** ververst bij het opbouwen van het destroy-plan áltijd eerst de volledige state, dus liep met de 4 buckets erin altijd vast vóórdat er een plan getoond werd. Fix: eerst `tofu state rm aws_s3_bucket.<naam>` op alle bucket-resources, dan destroy, en de buckets zelf los opruimen met `aws s3 rb s3://<bucket> --force` (werkt gewoon, de SCP blokkeert alleen Terraform's eigen leesactie, niet een normale delete).
-- **`tofu apply`** (eerste keer): de buckets worden prima aangemaakt, maar omdat de post-create leesactie faalt, blokkeert OpenTofu daarna álles dat van die buckets afhangt — bucket-policies, encryptie-config, public-access-block, de CloudTrail-trail, het CloudWatch-dashboard, de EventBridge-rule. Dat gebeurt niet door de foutmelding zelf, maar doordat elke volgende `plan`/`apply` de buckets opnieuw probeert te verversen en daar steeds opnieuw op vastloopt.
-- **Fix:** direct daarna nog een keer `tofu apply -refresh=false` draaien. Dat slaat de refresh van de hele state over (dus ook geen drift-detectie dit keer, voor dit ene apply onschuldig) en laat OpenTofu verdergaan met de laatst bekende waardes van de buckets, waarna de rest alsnog aangemaakt wordt.
-- **Als dat niet meteen werkt** (bv. bij een complete rebuild vanaf een lege state): de buckets komen dan uit een verse `CreateBucket`-aanroep en staan daardoor **"tainted"** (Terraform/OpenTofu markeert elke resource waarvan de `Create`-aanroep een fout teruggaf als niet-vertrouwd, ook al bestaat de bucket écht). Een volgende apply probeert zo'n tainted bucket dan te **vervangen** (afbreken + opnieuw aanmaken) - wat weer precies dezelfde leesfout raakt, en dus weer tainted wordt: een oneindige lus. Doorbreken met `tofu untaint aws_s3_bucket.<naam>` op alle 4 buckets vóór de volgende `tofu apply -refresh=false` - untaint zegt "vertrouw de bestaande bucket, niet vervangen". Kan nodig zijn voor alle 4 tegelijk, of nog een keer losjes voor `cloudtrail_logs` (die loopt vaak een rondje achter op de andere drie). Net zo lang herhalen tot `tofu plan -refresh=false` alleen nog de 3 bekende IAM-items toont.
+- **`tofu destroy`** ververst eerst altijd de hele state, dus liep met de 4 buckets erin altijd vast vóór er een plan kwam. Fix: eerst `tofu state rm aws_s3_bucket.<naam>`, dan destroy, buckets los opruimen met `aws s3 rb s3://<bucket> --force` (werkt — de SCP blokkeert alleen de leesactie, niet een delete).
+- **`tofu apply`** (eerste keer): buckets worden aangemaakt, maar de mislukte post-create leesactie blokkeert daarna alles dat ervan afhangt (policies, encryptie, CloudTrail, dashboard, EventBridge) — elke volgende `plan`/`apply` probeert opnieuw te verversen en loopt weer vast.
+- **Fix:** `tofu apply -refresh=false` erachteraan — slaat de refresh over, gaat verder met laatst bekende waardes.
+- **Als dat niet werkt** (bv. complete rebuild): buckets staan dan **"tainted"**, een volgende apply probeert ze te vervangen, raakt dezelfde leesfout, oneindige lus. Fix: `tofu untaint aws_s3_bucket.<naam>` op alle 4 buckets vóór de volgende `-refresh=false`-apply. Soms nodig voor `cloudtrail_logs` nog een extra keer apart. Herhalen tot `tofu plan -refresh=false` alleen nog de 3 bekende IAM-items toont.
 
 ## IPv6-only-experiment (en waarom alles nu dual-stack is)
 
-Geprobeerd: `web01`/`web02`/`app01`/`app02` IPv6-only laten draaien (geen publiek IPv4, geen NAT gateway) om de NAT-kosten te besparen — zelfde idee als NAT64/464XLAT bij mobiele providers: intern alleen IPv6, vertaling/dualstack alleen aan de rand. De load balancers (`presentation-lb`/`application-lb`) staan dual-stack en zijn van buiten gewoon over IPv4 én IPv6 bereikbaar; dat deel werkte en is ook zo gebleven.
+Geprobeerd: `web01`/`web02`/`app01`/`app02` IPv6-only laten draaien (geen publiek IPv4, geen NAT gateway) om NAT-kosten te besparen — zelfde idee als NAT64/464XLAT bij mobiele providers. De load balancers staan dual-stack en bleven gewoon over IPv4 én IPv6 bereikbaar; dat deel werkte.
 
-Wat daarbij meteen bleek: **`github.com` heeft geen AAAA-record**, dus geen IPv6. Een `git clone` in `user_data` liep daar na 135 seconden op vast. Oplossing: de code komt nu via een download van een IPv6-bereikbare Git-mirror (`repos.codetrunk.eu`, Forgejo-based) in plaats van rechtstreeks van GitHub — gewoon een `curl`+`unzip`, geen AWS-credentials nodig. Blijft zo, ook nu de instances weer IPv4 hebben (minder bewegende delen dan `git clone`).
+Eerste probleem: **`github.com` heeft geen AAAA-record**, dus geen IPv6. `git clone` in `user_data` liep na 135 seconden vast. GitHub blijft mijn single source of truth, maar voor het ophalen in `user_data` heb ik een IPv6-bereikbare mirror (`repos.codetrunk.eu`, Forgejo): een plat `curl`+`unzip` van een zip-export, geen AWS-credentials nodig. Die mirror gebruik ik nog steeds, ook nu de instances weer gewoon IPv4 hebben — simpeler dan een `git clone`, werkt ongeacht of een subnet IPv6, IPv4 of allebei heeft.
 
-Wat het IPv6-only-deel uiteindelijk brak: **Docker's eigen build-netwerk is standaard IPv4-only**, los van de host. `docker pull` (de node/nginx base-images) werkt prima, want dat loopt via de daemon over het netwerk van de hóst. Maar een `RUN`-stap in een Dockerfile (hier: `npm install` voor de frontend) draait in een eigen, geïsoleerde bridge-container die alleen IPv4 NAT doet — en zonder NAT gateway heeft die dus geen enkel pad naar buiten. Dat raakt elke Dockerfile met een internet-afhankelijke `RUN`-stap, dus ook de backend (`mvn`).
+Wat het IPv6-only-deel uiteindelijk brak: **Docker's build-netwerk is standaard IPv4-only**, los van de host. `docker pull` werkt prima (loopt via de daemon over het host-netwerk), maar een `RUN`-stap (hier: `npm install`) draait in een geïsoleerde bridge-container met alleen IPv4 NAT — zonder NAT gateway dus geen pad naar buiten. Raakt elke Dockerfile met een internet-afhankelijke `RUN`-stap, ook de backend (`mvn`).
 
-Conclusie: de NAT gateway staat er nu gewoon weer bij, en alle 4 instances zijn dual-stack (IPv4 + IPv6), niet IPv6-only. De egress-only internet gateway (gratis, voor IPv6) staat er ook nog naast. Had dit verder uitgezocht moeten worden (Docker's daemon kan met `ipv6`/`ip6tables` in `daemon.json` wél IPv6-only draaien), maar dat is precies het soort configuratie dat je niet blind midden in een deadline wil debuggen.
+Conclusie: NAT gateway staat er weer, alle 4 instances zijn dual-stack, niet IPv6-only. De egress-only internet gateway (gratis, voor IPv6) staat er nog naast. Docker's daemon kan met `ipv6`/`ip6tables` in `daemon.json` wél IPv6-only — niet iets om blind midden in een deadline te debuggen.
 
 ## NAT gateway-race condition bij een verse `tofu apply`
 
-Bij een complete rebuild vanaf nul (zoals na de lab-reset van 31-10-2026) worden de NAT gateway en de vier EC2-instances in dezelfde `tofu apply` aangemaakt. `user_data` begint te draaien zodra een instance opstart, maar een NAT gateway kan na "creation complete" nog een paar minuten nodig hebben voordat hij écht verkeer doorlaat. Omdat `user_data` maar één keer draait (bij de allereerste boot), herstelt een netwerktimeout die daardoor ontstaat zichzelf nooit vanzelf - de build blijft kapot staan, ook al is de NAT gateway een paar seconden later gewoon klaar.
+Bij een complete rebuild vanaf nul worden de NAT gateway en de vier EC2's in dezelfde `tofu apply` aangemaakt. `user_data` start zodra een instance opstart, maar een NAT gateway heeft na "creation complete" nog een paar minuten nodig voor echt verkeer. Omdat `user_data` maar één keer draait, herstelt een netwerktimeout zich nooit vanzelf — build blijft kapot, ook al is de NAT gateway even later gewoon klaar.
 
-Concreet gezien: `docker build` voor de backend faalde op `mvnw clean package` met `java.net.ConnectException: Operation timed out` (de Maven Wrapper probeert Maven zelf te downloaden, en heeft geen eigen retry-logica), terwijl `apt-get`/de git-mirror-download eerder in hetzelfde script wél doorkwamen - vermoedelijk omdat `apt` zijn eigen retries heeft en de NAT gateway intussen geleidelijk beschikbaar werd.
+Concreet: `docker build` voor de backend faalde op `mvnw clean package` met `java.net.ConnectException: Operation timed out` (Maven Wrapper heeft geen retry-logica), terwijl `apt-get`/de git-mirror-download eerder in hetzelfde script wél doorkwamen (apt heeft wel eigen retries).
 
-**Fix:** een wachtlus vooraan in elk `user_data`-script (`main.tf`, alle vier de instances) die pas verdergaat zodra er écht een werkende internetroute is:
+**Fix:** een wachtlus vooraan in elk `user_data`-script:
 
 ```bash
 for i in $(seq 1 30); do
@@ -122,12 +122,12 @@ for i in $(seq 1 30); do
 done
 ```
 
-Wacht tot 5 minuten (30 × 10s) voordat de rest van het script start. Ruim voldoende voor de paar minuten die een NAT gateway normaal nodig heeft, en kost in de praktijk niets extra zodra de gateway al klaar is (de eerste `curl` slaagt dan meteen).
+Wacht tot 5 minuten voordat de rest van het script start. Ruim genoeg, en kost niets extra zodra de gateway al klaar is.
 
 ## Alternatief voor S3: Bunny.net
 
-Deze casus gebruikt AWS S3, dus dat houd ik aan. Voor mezelf gebruik ik voor opslag/CDN meestal [Bunny.net](https://bunny.net), een Sloveens (EU) bedrijf — qua prijs per GB en dataverkeer goedkoper dan AWS, en data staat standaard in de EU, wat voor een Europese partij als SaxIT relevant kan zijn voor soevereiniteit/GDPR.
+Deze casus gebruikt AWS S3. Voor mezelf gebruik ik voor opslag/CDN meestal [Bunny.net](https://bunny.net), Sloveens/EU — goedkoper dan AWS per GB/verkeer, data standaard in de EU (relevant voor soevereiniteit/GDPR).
 
-Bunny Storage heeft ook een S3-compatible API ([docs](https://bunny.net/docs/storage/s3)), dus qua protocol is het geen ander verhaal dan S3 zelf, en Bunny breidt die storage-laag nog actief uit met nieuwe features. Geen IAM-achtig policysysteem met fijnmazige rechten, wel een read-only en een write key per storage zone — daar kun je zelf iets omheen bouwen (zelfde idee als de aparte read-only pull-PAT die ik in mijn andere vak voor Docker Hub gebruik). Wat er volgens de eigen docs nog niet in zit: SSE/SSE-C-encryptie (botst met de BYOK-encryptie uit week 4), object versioning, en ACL's.
+Bunny Storage heeft een S3-compatible API ([docs](https://bunny.net/docs/storage/s3)). Geen IAM-achtig policysysteem, wel een read-only en een write key per storage zone. Ontbreekt nog: SSE/SSE-C-encryptie (botst met de BYOK-encryptie uit week 4), object versioning, ACL's.
 
-Bunny.net is in de kern ook meer een webproduct dan een security-product: CDN, WAF, DNS en static file storage, en snel — Nederland ligt midden in hun servernetwerk. Voor SaxIT zou ik het zo adviseren: security en IAM gewoon bij AWS (of een andere cloud) houden, en Bunny.net ernaast inzetten als snelle CDN/WAF/DNS-laag met static file storage, niet als vervanging voor de security-kritieke dataflows uit deze casus.
+Bunny.net is meer een webproduct dan een security-product: CDN, WAF, DNS, static file storage. Advies: security/IAM bij AWS houden, Bunny.net ernaast als snelle CDN/WAF/DNS-laag, niet als vervanging voor de security-kritieke dataflows hier.

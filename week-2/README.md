@@ -4,27 +4,25 @@ In de beginsituatie staat het databasewachtwoord van `cloudsecdb` in platte teks
 
 ## 2.1 IAM-authenticatie naar RDS in plaats van een wachtwoord
 
-In de Learner Lab-module heb ik geen rechten om IAM-rollen of policies aan te maken (`iam:CreateRole`, `iam:CreatePolicy` staan niet toe op een studentenaccount). Dat betekent dat ik de stappen hieronder wél kan voorbereiden en in de AWS-console kan proberen uit te voeren, maar dat de definitieve `tofu apply` een rode `AccessDenied`-foutmelding geeft. Dat is ook precies wat de opdracht vraagt: de stappen laten zien, ondanks de foutmelding. Overzicht van wat wel/niet mag in de Lab staat in [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
+In de Learner Lab heb ik geen rechten om IAM-rollen/policies aan te maken (`iam:CreateRole`/`iam:CreatePolicy` staan niet toe op een studentenaccount). Ik kan de stappen dus wel voorbereiden, maar `tofu apply` eindigt met een rode `AccessDenied`. Dat is ook precies wat de opdracht vraagt: de stappen laten zien, ondanks de foutmelding. Wat wel/niet mag in de Lab: [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
 
 Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
-1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): een rol `app-tier-rds-iam-role` die EC2 mag aannemen, met een policy die alleen `rds-db:connect` toestaat, en dat ook nog eens afgebakend tot precies één database-gebruiker (`app_iam_user`) op precies deze RDS-instance. Geen bredere RDS- of AWS-rechten. Faalt met `AccessDenied` bij `tofu apply`, zoals hierboven beschreven.
-2. **Instance profile**: die rol zou ik koppelen aan `app01` en `app02` via `iam_instance_profile`. In de praktijk draaien `app01`/`app02` nu met de voorgedefinieerde `LabInstanceProfile` (data-lookup in `opentofu/iam.tf`, zie [`opentofu/main.tf`](../opentofu/main.tf)) — dat mag een student wél koppelen, in tegenstelling tot een eigen rol. Voor échte IAM-authenticatie naar RDS (stap 4/5 hieronder) zou de policy achter `LabRole` `rds-db:connect` moeten toestaan; dat kon ik niet verifiëren omdat ik het policy-document van `LabRole` zelf niet mag inzien (ook een Lab-beperking, zie de tabel in setup/README.md).
-3. **IAM-authenticatie aanzetten op de RDS-instance**: `iam_database_authentication_enabled = true` in [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf).
-4. **Een databasegebruiker die IAM-tokens accepteert**, aangemaakt via SQL (geen OpenTofu-resource voor MariaDB-gebruikers binnen RDS zelf):
+1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): `app-tier-rds-iam-role`, met een policy die alleen `rds-db:connect` toestaat, afgebakend tot precies `app_iam_user` op deze ene RDS-instance. Faalt met `AccessDenied` bij `tofu apply`.
+2. **Instance profile**: die rol zou ik koppelen via `iam_instance_profile`. In de praktijk draaien `app01`/`app02` nu met de voorgedefinieerde `LabInstanceProfile` — dat mag een student wel koppelen. Of de policy achter `LabRole` `rds-db:connect` toestaat kon ik niet checken: het policy-document zelf mag ik niet inzien.
+3. **IAM-authenticatie aan op de RDS-instance**: `iam_database_authentication_enabled = true` in [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf).
+4. **Databasegebruiker die IAM-tokens accepteert**, via SQL (geen OpenTofu-resource hiervoor binnen RDS):
    ```sql
    CREATE USER 'app_iam_user'@'%' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';
    GRANT SELECT, INSERT, UPDATE, DELETE ON cloudsecdb.* TO 'app_iam_user'@'%';
    ```
-5. **De applicatie zelf**: in plaats van `SPRING_DATASOURCE_PASSWORD=password123` in `user_data`, haalt de backend bij het opstarten (en periodiek opnieuw, want een IAM auth-token is maar 15 minuten geldig) een token op met `aws rds generate-db-auth-token --hostname <endpoint> --port 3306 --username app_iam_user`, en gebruikt dat token als wachtwoord. Spring Boot ondersteunt geen token-verversing in een gewone `DataSource` out-of-the-box; dat vraagt een kleine custom `DataSource`/`ConnectionProvider` die het token ververst vóór het verloopt, of een sidecar-proces dat de env-variabele herschrijft en de pool laat vernieuwen. Omdat de instance het IAM-token haalt via zijn eigen instance profile (stap 2), hoeft er nergens meer een AWS access key of wachtwoord in code, user-data of git te staan.
+5. **De applicatie**: i.p.v. `SPRING_DATASOURCE_PASSWORD=password123` in `user_data` haalt de backend een token op met `aws rds generate-db-auth-token ...` (geldig 15 minuten, dus periodiek verversen) en gebruikt dat als wachtwoord. Spring Boot doet dit niet out-of-the-box; dat vraagt een kleine custom `DataSource` of een sidecar die het token ververst. Geen AWS-key of wachtwoord meer nodig in code, user-data of git.
 
-Een eenvoudiger alternatief, dat ik ook aan SaxIT zou noemen: het wachtwoord zelf laten staan, maar het uit OpenTofu/user-data halen en in **AWS Secrets Manager** zetten met automatische rotatie, en de applicatie het wachtwoord bij het opstarten laten ophalen via dezelfde instance profile. Minder "native" dan IAM-tokens, maar eenvoudiger te bouwen en nog steeds geen statisch wachtwoord meer in code.
+Simpeler alternatief: wachtwoord laten staan maar uit OpenTofu/user-data halen, in **AWS Secrets Manager** met rotatie, app haalt het op via dezelfde instance profile. Minder native, wel sneller te bouwen.
 
-De rode foutmelding bij de uiteindelijke `tofu apply` - precies wat de opdracht vraagt ("ondanks dat je rode foutmeldingen krijgt"):
+De rode foutmelding bij `tofu apply` — precies wat gevraagd wordt:
 
 <img src="images/iam-createrole-accessdenied.png" alt="tofu apply: Error creating IAM Role (app-tier-rds-iam-role), AccessDenied op iam:CreateRole voor de student-rol" width="800">
-
-**Nog te doen (bewijs):** optioneel nog printscreens van dezelfde stappen los in de AWS-console (IAM-rol aanmaken, policy toevoegen) - geeft hetzelfde `AccessDenied`-resultaat als hierboven, dus niet strikt nodig naast de apply-foutmelding.
 
 ## 2.2 AWS Academy Cloud Security Foundations: Lab 3.1 en Knowledge check
 
@@ -36,17 +34,15 @@ Dit moet ik zelf doen in de AWS Academy-leeromgeving; dat kan ik niet namens jou
 
 **Let op - bekende AWS Academy-eigenaardigheid:** het cijferoverzicht laat bij "Labs" standaard `- / 100` zien, ook nadat een lab echt is doorlopen. Dat is geen afwijking bij mij specifiek; de lab-omgeving (een aparte Vocareum-sandbox) en het Canvas-cijferboek syncen niet betrouwbaar met elkaar, iets wat ook bij andere studenten in deze module voorkomt. Het gedownloade policy-bestand hierboven is daarom het eigenlijke bewijs dat de lab is uitgevoerd, naast de wél correct geregistreerde Knowledge Check-score.
 
-**Nog te doen:** Lab 3.1 en de bijbehorende Knowledge check afronden in de module *AWS Academy Cloud Security Foundations*, en het bewijsscherm hier plakken.
-
 ## 2.3 Advies: least privilege en Entra ID-federatie
 
-**Least privilege.** Het principe van least access betekent dat elke identiteit (mens of service) precies genoeg rechten krijgt om zijn taak te doen, niet meer. Voor SaxIT is dat niet alleen een IAM-regel, maar ook hoe het hele ontwerp in elkaar steekt: de security groups uit week 1 en 3 zijn ook least privilege, maar dan op netwerkniveau. Mijn advies voor SaxIT, concreet voor deze casus:
+**Least privilege.** Elke identiteit krijgt precies genoeg rechten voor zijn taak, niet meer — geldt voor IAM net zo goed als voor de security groups uit week 1/3. Voor SaxIT concreet:
 
-- Elke rol krijgt een eigen, smalle policy in plaats van één brede "PowerUser"-rol voor alle app-servers. In dit ontwerp is dat bijvoorbeeld `app-tier-rds-iam-role`: alleen `rds-db:connect`, alleen op die ene databasegebruiker, niets anders.
-- Rollen voor VM's/services (zoals de instance profile hierboven) in plaats van lange-termijn access keys die in configuratie of code terecht kunnen komen.
-- Rechten regelmatig herzien: een rol die bij het opzetten van de omgeving breed was "om het werkend te krijgen" (zoals nu met het wachtwoord in `user_data`) moet daarna versmald worden, niet voor altijd zo blijven staan.
-- Voor externe klanten van het CMDB-systeem (zie `Casus SaxIT.docx`): elke klant mag alleen bij zijn eigen tenant-data, nooit bij die van een andere klant. Dat is least privilege op applicatieniveau, net zo belangrijk als op infrastructuurniveau.
+- Eigen smalle policy per rol i.p.v. één brede "PowerUser"-rol. Hier: `app-tier-rds-iam-role` mag alleen `rds-db:connect`, op één databasegebruiker.
+- Rollen voor VM's/services i.p.v. lange-termijn access keys die in code terecht kunnen komen.
+- Rechten die "om het werkend te krijgen" breed stonden (zoals nu het wachtwoord in `user_data`) achteraf versmallen, niet voor altijd zo laten staan.
+- Voor het CMDB-systeem: elke klant mag alleen bij zijn eigen tenant-data — least privilege op applicatieniveau.
 
-**Entra ID-federatie naar de AWS-console.** SaxIT gebruikt al Microsoft Entra ID (voorheen Azure AD) voor identiteiten. In plaats van losse IAM-gebruikers met eigen wachtwoorden in AWS aan te maken (weer een identiteitsbron om te beheren, weer een plek waar een wachtwoord kan uitlekken) zou ik Entra ID koppelen aan AWS via **IAM Identity Center** (voorheen AWS SSO) met SAML 2.0, of via directe **OIDC/SAML-federatie** naar IAM-rollen. Een medewerker logt dan in met zijn bestaande Entra ID-account en krijgt, via een groep in Entra ID die gekoppeld is aan een IAM-rol, tijdelijke AWS-credentials voor precies de rechten die bij die rol horen. Voordelen voor SaxIT: één plek voor onboarding/offboarding (iemand die uit dienst gaat, verliest automatisch ook zijn AWS-toegang zodra zijn Entra ID-account wordt uitgeschakeld), MFA en conditional access-beleid dat al in Entra ID staat werkt meteen door naar AWS, en er hoeven geen losse, soms vergeten IAM-gebruikers met eigen wachtwoorden bijgehouden te worden.
+**Entra ID-federatie.** SaxIT gebruikt al Microsoft Entra ID. In plaats van losse IAM-gebruikers met eigen wachtwoorden zou ik Entra ID koppelen via **IAM Identity Center** (SAML 2.0) of directe OIDC/SAML-federatie naar IAM-rollen: een medewerker logt in met zijn Entra ID-account en krijgt via een gekoppelde groep tijdelijke AWS-credentials. Voordeel: één plek voor onboarding/offboarding (AWS-toegang vervalt automatisch met het Entra ID-account), MFA/conditional access werkt meteen door, geen losse IAM-wachtwoorden om bij te houden.
 
 Bronnen: [AWS Well-Architected: Identity and access management](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/identity-and-access-management.html), [Principle of least privilege (Cloudflare)](https://www.cloudflare.com/learning/access-management/principle-of-least-privilege/), [IAM-authenticatie voor RDS](https://mafiaguy.medium.com/a-comprehensive-guide-to-iam-authentication-for-amazon-rds-instances-b1ac96c52233), [AWS IAM Identity Center: SAML/externe IdP](https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html), [Microsoft Entra ID federatie met AWS](https://learn.microsoft.com/en-us/entra/identity/saas-apps/amazon-web-service-tutorial).

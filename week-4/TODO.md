@@ -8,9 +8,17 @@
 - [x] 4.4 CloudTrail (data events), EventBridge-rule, SNS-topic en CloudWatch-dashboard geschreven (`scripts/data-protection-setup.sh`)
 - [x] 4.6 Advies AVG-koppeling en vergelijking encryptievormen geschreven
 
+- [x] AWS Learner Lab: `tofu apply` + `scripts/data-protection-setup.sh` gedraaid
+- [x] 4.2 Bewijs: buckets + geweigerde upload (verkeerde tag) via S3-console, screenshots in `images/`
+
+- [x] 4.3 Bewijs: keymateriaal geïmporteerd, KMS-sleutel status "Enabled" (screenshots in `images/`)
+- [x] 4.3 Bewijs: encryptie-instelling confidential-bucket wijst naar de sleutel (screenshot)
+- [x] 4.4 Bewijs: download + alert-mail met volledige CloudTrail-event (screenshots in `images/`)
+
+- [x] 4.5 Module 5 Knowledge Check (100/100), zie README.md
+
 ## Nog te doen
-- [ ] AWS Learner Lab: `tofu apply` (voor de KMS-sleutel), daarna `scripts/data-protection-setup.sh <suffix> <e-mailadres>` draaien
-- [ ] 4.2 Bewijs: de drie buckets met hun encryptie-instelling, en een geweigerde upload (verkeerde tag/geen encryptie)
-- [ ] 4.3 Bewijs: KMS-sleutel met status "Imported key material", en de encryptie-instelling van de geheime bucket die ernaar wijst
-- [ ] 4.4 Bewijs: CloudTrail-logregel van een download, de e-mail-alert (of de EventBridge-configuratie als die laatste stap op rechten vastloopt), en het CloudWatch-dashboard
-- [ ] 4.5 AWS Academy Cloud Security Foundations: Lab 5.1 zelf afronden, bewijsscherm in README.md plakken
+Geen, week 4 is compleet.
+
+---
+Hier houd ik bij wat ik nog moet doen.

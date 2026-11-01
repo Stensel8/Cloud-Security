@@ -9,5 +9,12 @@
 - [x] 3.1 Bewijs: directe `curl` naar `app01:8080` (buiten de load balancer om) geeft een timeout (screenshot in `images/`)
 - [x] 3.2 Bewijs: SG-regels in de console + TCP-test vanaf `app01` (gelukt) en `web01` (mislukt) (screenshots in `images/`)
 
+- [x] 3.3 Bewijs: geslaagde pipeline-run op `uitwerkingen` (incl. twee echte CI-bugs gevonden en gefixt: hangende backend-prompt, ontbrekende variabelen - zie README.md)
+
+- [x] 3.3 Bewijs: plan-only run op PR #140, apply-stap "skipped"
+
 ## Nog te doen
-- [ ] 3.3 Bewijs: screenshot van een geslaagde pipeline-run op `uitwerkingen`, en van een plan-only run op een pull request (let op: die Learner Lab-credentials verlopen na een paar uur, dus misschien moeten de secrets tegen die tijd opnieuw)
+Geen, week 3 is compleet.
+
+---
+Hier houd ik bij wat ik nog moet doen.

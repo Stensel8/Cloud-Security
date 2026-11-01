@@ -2,16 +2,16 @@
 
 Ik richt de initiële 3-tier infrastructuur in AWS in met het Terraform-script uit de module (`rds.tf` en `main.tf`), teken het netwerk, en schrijf twee adviezen voor SaxIT: het Shared Responsibility Model (1.2) en een bastion host (1.3).
 
-**Terraform versus OpenTofu:** de module levert `main.tf`/`rds.tf` aan als HashiCorp Terraform-script. Ik draai dit zelf met **OpenTofu** in plaats van Terraform: dezelfde HCL-taal, dezelfde providers (ook gewoon `hashicorp/aws`), dus de `.tf`-bestanden zelf blijven identiek. Het enige verschil is welke CLI ik gebruik (`tofu` in plaats van `terraform`) en hoe ik die installeer (zie 1.1). Reden: OpenTofu is de open-source fork van Terraform en blijft dat ook, in tegenstelling tot Terraform zelf sinds de licentiewijziging van HashiCorp.
+**Terraform versus OpenTofu:** de module levert `main.tf`/`rds.tf` aan als Terraform-script. Ik draai dit met **OpenTofu**: zelfde HCL-taal, zelfde providers, dus de `.tf`-bestanden blijven identiek. Alleen de CLI verschilt (`tofu` i.p.v. `terraform`, zie 1.1). Reden: OpenTofu is de open-source fork van Terraform, Terraform zelf niet meer sinds HashiCorp's licentiewijziging.
 
-**AWS-provider-versie:** de module pint `hashicorp/aws` op `3.66.0`. Ik gebruik zelf de actuele `6.70.0` (Dependabot had dit al voorgesteld, zie [PR #133](https://github.com/Stensel8/Cloud-Security/pull/133)). Tussen v3 en v6 zijn er echte breaking changes; de enige die mijn code echt raakte was `aws_db_instance`: het argument `name` heette vanaf v5 `db_name` ([upgradegids](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade)). Dat heb ik aangepast in [`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf), en meteen ook een expliciete `identifier = "cloudsecdb"` toegevoegd (stond er nog niet in, waardoor de data-lookup in `iam.tf` nooit de juiste instance zou vinden).
+**AWS-provider-versie:** de module pint `hashicorp/aws` op `3.66.0`, ik gebruik `6.70.0` (Dependabot-voorstel, [PR #133](https://github.com/Stensel8/Cloud-Security/pull/133)). Enige breaking change die me raakte: `aws_db_instance.name` heet sinds v5 `db_name` ([upgradegids](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade)). Aangepast in [`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf), met meteen een expliciete `identifier = "cloudsecdb"` erbij (ontbrak, waardoor de data-lookup in `iam.tf` de instance niet zou vinden).
 
 ## 1.1 Bootomgeving: de 3-tier infrastructuur
 
-De omgeving bestaat uit twee OpenTofu-scripts, precies zoals de handleiding voorschrijft (die het over Terraform heeft, zie hierboven waarom ik voor OpenTofu koos):
+Twee OpenTofu-scripts, zoals de handleiding voorschrijft:
 
-1. **[`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf)** maakt een eigen VPC (`10.1.0.0/16`) met een MariaDB RDS-instance erin. Dit script staat bewust in een eigen map, los van `main.tf`, en draait zonder remote backend. Na het aanmaken van de database noteer ik het endpoint en verwijder ik de lokale OpenTofu-state van dit script, zodat een latere `tofu destroy` op `main.tf` deze database nooit per ongeluk meeneemt. Zo raakt ook de pipeline van week 3 (3.3), die alleen `main.tf`/`bastion.tf` opnieuw uitrolt, deze map nooit aan.
-2. **[`main.tf`](../opentofu/main.tf)** (plus [`bastion.tf`](../opentofu/bastion.tf)) maakt de rest: een eigen VPC (`10.0.0.0/16`) met presentation- en applicationtier-subnets verspreid over twee availability zones, twee Application Load Balancers, vier EC2's (`web01`, `web02`, `app01`, `app02`) die bij het opstarten via `user_data` Docker installeren en mijn fork van de applicatie bouwen en draaien, en een VPC-peering naar de db-VPC van `rds.tf`.
+1. **[`rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf)** — eigen VPC (`10.1.0.0/16`) met een MariaDB RDS-instance. Staat los van `main.tf`, draait zonder remote backend. Na het aanmaken noteer ik het endpoint en gooi ik de lokale state weg, zodat een `tofu destroy` op `main.tf` deze database nooit raakt — ook de pipeline uit 3.3 komt niet in deze map.
+2. **[`main.tf`](../opentofu/main.tf)** (plus [`bastion.tf`](../opentofu/bastion.tf)) — eigen VPC (`10.0.0.0/16`) met presentation- en applicationtier-subnets over twee availability zones, twee Application Load Balancers, vier EC2's (`web01`, `web02`, `app01`, `app02`) die via `user_data` Docker installeren en de app bouwen/draaien, en VPC-peering naar de db-VPC.
 
 ### Toegang tot de AWS Learner Lab
 
@@ -21,7 +21,7 @@ Ik heb toegang tot de module via AWS Academy, en heb de Learner Lab-sessie gesta
 
 <img src="images/learner-lab-start.png" alt="AWS Academy Learner Lab met de Start Lab-knop" width="720">
 
-Eenmaal gestart (timer loopt) geeft de lab tijdelijke AWS-credentials via "AWS Details" → "Cloud Access". Het credentials-blok zelf staat hieronder bewust afgeschermd met een ondoorzichtig vlak, niet geblurd: dat zijn actieve sleutels, en blur op dit soort monospace-tekst is met wat moeite soms terug te herleiden.
+Eenmaal gestart geeft de lab tijdelijke AWS-credentials via "AWS Details" → "Cloud Access". Het credentials-blok hieronder is afgeschermd met een ondoorzichtig vlak, niet geblurd — blur op monospace-tekst is soms terug te herleiden.
 
 <img src="images/learner-lab-cloud-access.png" alt="AWS Academy Learner Lab met de tijdelijke CLI-credentials, credentials-blok afgeschermd" width="500">
 
@@ -35,7 +35,7 @@ Een Learner Lab-sessie geeft tijdelijke credentials die na een paar uur verlopen
 
 <img src="images/lab-account-id-regio.png" alt="AWS Details-paneel met AWSAccountId 142585515293 en Region us-east-1" width="400">
 
-Om die credentials niet elke keer met de hand in `~/.aws/credentials` te zetten, heb ik [`setup/lab-login.sh`](../setup/lab-login.sh) geschreven: het script vraagt de Access Key ID, Secret Access Key en Session Token op uit "AWS Details" → "Cloud Access", zet ze onder het juiste profiel, en test de verbinding meteen met `aws sts get-caller-identity`.
+Om dat niet elke keer met de hand te doen: [`setup/lab-login.sh`](../setup/lab-login.sh). Vraagt Access Key ID, Secret Access Key en Session Token op, zet ze onder het juiste profiel, test meteen met `aws sts get-caller-identity`.
 
 <img src="images/lab-login-script-prompts.png" alt="Terminal met setup/lab-login.sh: prompts voor account-ID, keys en regio" width="500">
 
@@ -61,9 +61,9 @@ Deze keypair gebruik ik om op de EC2-instances in te loggen. De naam noteer ik i
 
 <img src="images/s3-bucket-aanmaken.png" alt="Create bucket-formulier: prefix 550600-cloudsec-tfstate, Account Regional namespace, regio us-east-1" width="720">
 
-Regio `us-east-1`, zelfde regio als in `main.tf`/`rds.tf`. Voor de naamgeving kies ik Account Regional namespace in plaats van Global namespace: AWS plakt er automatisch een account-specifieke suffix achter, wat de bucketnaam lastiger te gokken maakt voor scanners die bekende naampatronen afgaan. Dat is een extra laag bovenop Block Public Access (staat aan), niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) noteer ik in `labnotes.txt`.
+Regio `us-east-1`, zelfde als `main.tf`/`rds.tf`. Account Regional namespace i.p.v. Global: AWS plakt er een account-specifieke suffix achter, lastiger te gokken voor scanners — een extra laagje bovenop Block Public Access, niet de beveiliging zelf. Volledige naam (`550600-cloudsec-tfstate-142585515293-us-east-1-an`) in `labnotes.txt`.
 
-Rest van de instellingen laat ik op de AWS-standaard staan: Object Ownership op "ACLs disabled", Block all public access aan, en SSE-S3-encryptie met Bucket Key aan. Versioning zet ik niet aan, niet nodig voor dit project.
+Verder AWS-standaard: ACLs disabled, Block all public access aan, SSE-S3 met Bucket Key aan. Versioning niet nodig voor dit project.
 
 Keypair-naam, bucketnaam, account-ID en mijn eigen IP staan nergens in `main.tf` zelf, maar in `terraform.tfvars`/`backend.hcl` (niet gecommit) en in `labnotes.txt`. Volledige installatiehandleiding, stap voor stap: [`setup/README.md`](../setup/README.md).
 
@@ -162,34 +162,26 @@ IPv6-egress (via een gratis egress-only internet gateway, niet apart getekend) l
 
 ## 1.2 Advies: het Shared Responsibility Model voor SaxIT
 
-Dit ontwerp draait op EC2, RDS en Elastic Load Balancing: allemaal IaaS/managed-services, geen serverless. Voor AWS betekent dat "Security **of** the Cloud": AWS is verantwoordelijk voor de fysieke datacenters, het netwerk van de hypervisor naar beneden, de hardware van RDS en de beschikbaarheid van de load balancer-service zelf. Voor alles wat ik er bovenop zet geldt "Security **in** the Cloud": dat is mijn verantwoordelijkheid.
+Dit ontwerp draait op EC2, RDS en Elastic Load Balancing — allemaal IaaS/managed, geen serverless. AWS regelt "security **of** the cloud": de datacenters, het netwerk onder de hypervisor, de RDS-hardware, de beschikbaarheid van de load balancer. Alles wat ik erbovenop zet is "security **in** the cloud", en dus mijn verantwoordelijkheid:
 
-Concreet, per onderdeel in dit ontwerp:
+- **VPC/subnets/routering** — AWS isoleert VPC's van elkaar; ik regel de tier-indeling, routetabellen, peering.
+- **Security groups** — de firewall werkt altijd; welke poorten open staan (nog te ruim, zie 1.3 en week 3) is aan mij.
+- **EC2** (web01/02, app01/02, bastion) — AWS beheert de hypervisor; het OS, patches, Docker-containers en de user-data met nu nog een wachtwoord in platte tekst zijn van mij.
+- **RDS (MariaDB)** — AWS houdt de engine en infra-backups draaiende; het wachtwoord, toegang, encryptie en schema zijn mijn zaak.
+- **Elastic Load Balancer** — AWS regelt beschikbaarheid/schaling; listeners, targetgroups en TLS (nu nog geen, alles HTTP) stel ik in.
+- **IAM** — de service werkt altijd; welke rollen/policies ik aanmaak en hoe strikt least privilege is (zie week 2), is aan mij.
 
-| Onderdeel | AWS doet | SaxIT (ik) doet |
-| --- | --- | --- |
-| VPC, subnets, routering | Het fysieke netwerk en de isolatie tussen VPC's van verschillende klanten | De indeling in tiers, de routetabellen, de VPC-peering |
-| Security groups | De firewall-functionaliteit zelf werkt altijd | Welke poorten open staan en voor wie (nu nog te ruim, zie 1.3 en week 3) |
-| EC2 (web01/02, app01/02, bastion) | Het fysieke hostplatform, de hypervisor | Het besturingssysteem, patches, welke software erop draait, de Docker-containers, user-data met (nu nog) een wachtwoord in platte tekst |
-| RDS (MariaDB) | De database-engine draaiende houden, onderliggende patches van het DB-platform, back-ups van de infrastructuur | Het databasewachtwoord, wie er toegang toe heeft, of encryptie aan staat, het databaseschema |
-| Elastic Load Balancer | De beschikbaarheid en schaling van de load balancer zelf | Welke listeners en targetgroups ik configureer, of er TLS op zit (nu nog niet: alles is HTTP) |
-| IAM | De IAM-service zelf werkt en is beschikbaar | Welke gebruikers, rollen en policies ik aanmaak en hoe strikt least privilege is (zie week 2) |
-
-Mijn advies aan SaxIT: AWS zorgt dat de bakstenen stevig zijn, maar het huis zelf (wie er binnen mag, welke deuren er zijn, of de brandkast op slot zit) is aan ons. Dat betekent dat een "het staat in de cloud dus het is beveiligd"-aanname niet klopt: de security groups, IAM-rollen, encryptie en patching in dit ontwerp zijn allemaal dingen die ík fout kan laten staan, en AWS lost dat niet voor me op. Ik zou dit verder uitwerken door dit schema als uitgangspunt te nemen bij elke nieuwe AWS-dienst die SaxIT toevoegt: eerst vaststellen wat AWS regelt, dan expliciet maken wat er aan onze kant nog open staat.
+Advies aan SaxIT: "het staat in de cloud dus het is beveiligd" klopt niet. Security groups, IAM, encryptie en patching zijn allemaal dingen die ík kan laten staan — AWS lost dat niet op. Bij elke nieuwe AWS-dienst eerst vaststellen wat AWS regelt, dan expliciet maken wat aan onze kant nog open staat.
 
 Bronnen: [AWS Shared Responsibility Model](https://aws.amazon.com/compliance/shared-responsibility-model/), [AWS Well-Architected Security Pillar: Shared Responsibility](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/shared-responsibility.html), [Wat is cloud security (Check Point)](https://www.checkpoint.com/cyber-hub/cloud-security/what-is-cloud-security/).
 
 ## 1.3 Advies en implementatie: bastion host
 
-Een bastion host (ook wel jump host) is één, bewust kleine en goed bewaakte server die als enige poort naar buiten voor SSH-verkeer dient. In plaats van dat elke VM in de presentation- en applicationtier zelf bereikbaar is via SSH vanaf het hele internet, staat SSH op al die VM's alleen nog open voor verkeer dat van de bastion host zelf komt. Wil ik op `app01` inloggen, dan SSH ik eerst naar de bastion host, en vandaar met een tweede SSH-sprong (`ssh -J` of `ProxyJump`) door naar `app01`.
+Een bastion host (jump host) is één kleine, goed bewaakte server die als enige poort naar buiten voor SSH dient. In plaats van dat elke VM zelf vanaf het internet via SSH bereikbaar is, staat SSH op die VM's alleen nog open voor verkeer van de bastion zelf. Inloggen op `app01` gaat dus via de bastion, met een tweede SSH-sprong (`ssh -J`/ProxyJump).
 
-Voor deze casus verhoogt dat de veiligheid om een paar redenen:
+Voordelen: kleiner aanvalsoppervlak (vier publieke SSH-ingangen worden er één, met alleen mijn eigen IP erin), één plek om logins/patches in de gaten te houden in plaats van vier, en de private key hoeft maar door één host gezien te worden.
 
-- **Kleiner aanvalsoppervlak.** In de beginsituatie staat SSH op `web01`, `web02`, `app01` en `app02` open voor `0.0.0.0/0`: vier publieke IP-adressen die vanaf elk IP ter wereld te benaderen zijn. Met een bastion host is dat nog maar één host, met één smalle regel (alleen mijn eigen IP).
-- **Eén plek om te monitoren en te patchen.** Loginpogingen, mislukte authenticaties en kwetsbaarheden in de SSH-daemon hoef ik nu nog maar op één machine in de gaten te houden, in plaats van op vier.
-- **Credentials blijven dichter bij huis.** Alleen de bastion host hoeft de private key te zien die ook echt gebruikt wordt om in te loggen; de andere VM's zijn alleen bereikbaar via die ene sprong.
-
-Ik heb dit toegepast in [`opentofu/bastion.tf`](../opentofu/bastion.tf): een losse `bastion_sg` die SSH alleen toestaat vanaf mijn eigen IP (`local.my_ip`), en een EC2-instance in de presentationtier-subnet die als enige poort naar binnen dient. In [`opentofu/main.tf`](../opentofu/main.tf) heb ik de SSH-ingress-regel van `presentationtier_sg` en `applicationtier_sg` aangepast van een open CIDR-blok (`0.0.0.0/0`) naar een verwijzing naar `bastion_sg.id` (security-group-naar-security-group, geen CIDR meer). Daarmee kan niemand, ook ikzelf niet, nog rechtstreeks met SSH bij `web01/web02/app01/app02` komen: alleen via de bastion host.
+Toegepast in [`opentofu/bastion.tf`](../opentofu/bastion.tf): een `bastion_sg` die SSH alleen vanaf mijn IP (`local.my_ip`) toelaat, en een EC2 in de presentationtier-subnet als enige ingang. In [`opentofu/main.tf`](../opentofu/main.tf) wijst de SSH-ingress van `presentationtier_sg`/`applicationtier_sg` nu naar `bastion_sg.id` in plaats van een open CIDR-blok. Niemand komt nog rechtstreeks met SSH bij `web01/web02/app01/app02` — alleen via de bastion.
 
 ```hcl
 ingress {
@@ -201,11 +193,11 @@ ingress {
 }
 ```
 
-Bewijs vanaf mijn eigen laptop: direct SSH'en naar `app01` (privé-IP, niet routeerbaar vanaf het internet) hangt/mislukt, SSH via de bastion host (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) lukt meteen:
+Bewijs: direct SSH'en naar `app01` (privé-IP) hangt/mislukt, via de bastion (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) lukt het meteen:
 
 <img src="images/ssh-direct-faalt-via-bastion-lukt.png" alt="Terminal: directe SSH naar 10.0.3.16 wordt afgebroken (^C), SSH via -J ubuntu@bastion-ip lukt en logt in op ip-10-0-3-16" width="800">
 
-En ter controle in de AWS-console dat dit ook echt de juiste IP's zijn: alle vier de web-/app-instances hebben geen publiek IPv4-adres, alleen de bastion heeft er één (`35.173.231.84`):
+Ter controle: alle vier de web-/app-instances hebben geen publiek IPv4-adres, alleen de bastion heeft er één (`35.173.231.84`):
 
 <img src="images/ec2-instances-overzicht-public-ip.png" alt="EC2 Instances-overzicht: app01/app02/web01/web02 hebben Public IPv4 address '-', bastion heeft 35.173.231.84" width="900">
 

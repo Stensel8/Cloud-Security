@@ -9,4 +9,7 @@
 - [x] 2.2 Module 3 Knowledge Check (90/100) + Lab 3.1 doorlopen (policy-artefact in `lab-3.1-developergrouppolicy.json`, zie README.md voor de toelichting over AWS Academy's onbetrouwbare labs-voltooiingsregistratie)
 
 ## Nog te doen
-- [ ] 2.1 Bewijs (optioneel): dezelfde stappen nog los in de AWS-console doorlopen (IAM-rol/policy aanmaken) - geeft hetzelfde resultaat als de apply-foutmelding, dus niet strikt nodig
+Geen, week 2 is compleet.
+
+---
+Hier houd ik bij wat ik nog moet doen.

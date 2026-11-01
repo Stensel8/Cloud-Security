@@ -18,3 +18,6 @@
 
 ## Nog te doen
 Geen, week 1 is compleet.
+
+---
+Hier houd ik bij wat ik nog moet doen.

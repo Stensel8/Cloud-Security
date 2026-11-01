@@ -17,10 +17,10 @@ Mijn uitwerking van de Cloud Security-module. Deze applicatie draait in een 3-ti
 
 De infrastructuurcode gebruikt [OpenTofu](https://opentofu.org/) in plaats van HashiCorp Terraform: dezelfde taal en providers, maar open source gebleven. Zie [week 1](week-1/README.md) voor waarom. Installatiehandleiding (van nul af aan opzetten): [`setup/README.md`](setup/README.md).
 
-- [Week 1](week-1/README.md) ([TODO](week-1/TODO.md)): 3-tier infrastructuur, netwerktekening, Shared Responsibility Model, bastion host
-- [Week 2](week-2/README.md) ([TODO](week-2/TODO.md)): IAM-authenticatie naar RDS, least privilege, Entra ID-federatie
-- [Week 3](week-3/README.md) ([TODO](week-3/TODO.md)): North-South/East-West segmentatie, immutable infrastructure via een pipeline
-- [Week 4](week-4/README.md) ([TODO](week-4/TODO.md)): Dataclassificatie, S3-encryptie, bring your own key, logging en alerting
-- [Week 5](week-5/README.md) ([TODO](week-5/TODO.md)): Incident response plan, application security, STRIDE-threatmodel
-- [Week 6](week-6/README.md) ([TODO](week-6/TODO.md)): Centrale logging, AWS-detectiediensten, Security Hub, log-analyse met Python en IsolationForest
-- [Week 7](week-7/README.md) ([TODO](week-7/TODO.md)): Security frameworks, NIST CSF, AVG
+- [Week 1](week-1/README.md): 3-tier infrastructuur, netwerktekening, Shared Responsibility Model, bastion host
+- [Week 2](week-2/README.md): IAM-authenticatie naar RDS, least privilege, Entra ID-federatie
+- [Week 3](week-3/README.md): North-South/East-West segmentatie, immutable infrastructure via een pipeline
+- [Week 4](week-4/README.md): Dataclassificatie, S3-encryptie, bring your own key, logging en alerting
+- [Week 5](week-5/README.md): Incident response plan, application security, STRIDE-threatmodel
+- [Week 6](week-6/README.md): Centrale logging, AWS-detectiediensten, Security Hub, log-analyse met Python en IsolationForest
+- [Week 7](week-7/README.md): Security frameworks, NIST CSF, AVG
