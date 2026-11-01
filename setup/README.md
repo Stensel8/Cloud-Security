@@ -12,7 +12,7 @@ Eigen, herschreven versie van de install guide van school (`school docs/handleid
 
 ## Lab-credentials verversen
 
-Een Learner Lab-sessie verloopt na een paar uur. [`setup/lab-login.sh`](lab-login.sh) vraagt interactief om nieuwe credentials, zet ze in `~/.aws/credentials`, test meteen met `aws sts get-caller-identity`.
+Een Learner Lab-sessie verloopt na een paar uur. [`setup/lab-login.sh`](lab-login.sh) vraagt interactief om nieuwe credentials, zet ze in `~/.aws/credentials`, test meteen met `aws sts get-caller-identity`. Hetzelfde scriptje staat ook in [DevOps-Security](https://github.com/Stensel8/DevOps-Security/blob/main/setup/lab-login.sh) (ander vak, zelfde AWS Academy Learner Lab), zodat ik het niet twee keer hoef te schrijven.
 
 ```bash
 ./setup/lab-login.sh
