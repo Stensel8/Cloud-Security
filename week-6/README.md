@@ -122,6 +122,14 @@ Toegepast met `tofu apply`: `enable_dns_hostnames` ging van `false` naar `true`,
 
 <img src="images/guardduty-malware-scans-running.png" alt="GuardDuty on-demand malware scans gestart voor web01, web02, app01, app02" width="900">
 
+Resultaat na een paar minuten: alle 4 "Completed", "No threats found":
+
+<img src="images/guardduty-malware-scans-completed.png" alt="GuardDuty Malware scans: 4x Completed, No threats found" width="900">
+
+Security Hub-summary ter afsluiting: 246 findings over 141 resources in de omgeving:
+
+<img src="images/security-hub-summary-dashboard.png" alt="Security Hub Summary: 246 findings, 141 resources" width="900">
+
 ## 6.5 Log-analyse met Python en IsolationForest
 
 ### Wat het script doet
