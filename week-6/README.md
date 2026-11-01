@@ -130,6 +130,10 @@ Security Hub-summary ter afsluiting: 246 findings over 141 resources in de omgev
 
 <img src="images/security-hub-summary-dashboard.png" alt="Security Hub Summary: 246 findings, 141 resources" width="900">
 
+GuardDuty's AI-investigatie (Investigations-tab) bevestigt hetzelfde over een periode van 91 dagen: brede dekking aan (CloudTrail, DNS, VPC Flow Logs, S3/RDS/Lambda-protection, Malware Protection, Runtime Monitoring), nul findings op elke severity:
+
+<img src="images/guardduty-ai-investigation.png" alt="GuardDuty AI-investigation: 0 findings over 91 dagen, brede dekking aan" width="900">
+
 ## 6.5 Log-analyse met Python en IsolationForest
 
 ### Wat het script doet
