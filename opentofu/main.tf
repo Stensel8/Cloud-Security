@@ -1,6 +1,7 @@
 terraform {
   # Dit project draait op OpenTofu (zie week-1/README.md), niet op HashiCorp Terraform zelf. Dezelfde
   # "terraform"-block-naam werkt in OpenTofu ook, voor compatibiliteit.
+  # (triviale wijziging voor week 3.3: bewijs dat een pull request alleen een plan draait, geen apply)
   required_version = ">= 1.13.2"
   # bucket staat expres niet hier (dat zou het account-ID in de bucketnaam in git zetten). Die komt uit
   # backend.hcl, een lokaal, niet-gecommit bestand: "tofu init -backend-config=backend.hcl". Zie week-1/README.md.
