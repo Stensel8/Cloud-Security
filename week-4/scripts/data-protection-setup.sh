@@ -24,15 +24,15 @@ ALERT_EMAIL="${2:?gebruik: ./data-protection-setup.sh <unieke-suffix> <mailadres
 REGION="${AWS_REGION:-us-east-1}"
 export AWS_DEFAULT_REGION="$REGION"
 
-KMS_ALIAS="alias/saxit-geheim-byok" # door OpenTofu aangemaakt, zie opentofu/data-protection.tf
-BUCKET_OPENBAAR="saxit-data-openbaar-$SUFFIX"
-BUCKET_INTERN="saxit-data-intern-$SUFFIX"
-BUCKET_GEHEIM="saxit-data-geheim-$SUFFIX"
+KMS_ALIAS="alias/saxit-confidential-byok" # door OpenTofu aangemaakt, zie opentofu/data-protection.tf
+BUCKET_PUBLIC="saxit-data-public-$SUFFIX"
+BUCKET_INTERNAL="saxit-data-internal-$SUFFIX"
+BUCKET_CONFIDENTIAL="saxit-data-confidential-$SUFFIX"
 BUCKET_LOGS="saxit-cloudtrail-logs-$SUFFIX"
-TRAIL_NAME="saxit-geheim-bucket-trail"
-TOPIC_NAME="saxit-geheim-bucket-alerts"
-RULE_NAME="saxit-geheim-object-read"
-DASHBOARD_NAME="saxit-s3-classificatie"
+TRAIL_NAME="saxit-confidential-bucket-trail"
+TOPIC_NAME="saxit-confidential-bucket-alerts"
+RULE_NAME="saxit-confidential-object-read"
+DASHBOARD_NAME="saxit-s3-classification"
 
 step() { echo; echo "=== $*"; }
 ok()   { echo "    OK: $*"; }
@@ -53,12 +53,12 @@ make_bucket() {
     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 }
 
-# Policy per classificatie: alleen HTTPS, encryptie verplicht van het juiste type (geheim: ook de juiste
-# KMS-sleutel), en het object moet getagd zijn met de classificatie die bij déze bucket hoort - zo kan een
-# "geheim"-bestand niet per ongeluk (of expres) als "openbaar" getagd in de verkeerde bucket belanden.
+# Policy per classificatie: alleen HTTPS, encryptie verplicht van het juiste type (confidential: ook de
+# juiste KMS-sleutel), en het object moet getagd zijn met de classificatie die bij déze bucket hoort - zo kan
+# een "confidential"-bestand niet per ongeluk (of expres) als "public" getagd in de verkeerde bucket belanden.
 bucket_policy() {
-  local classificatie="$1" arn="arn:aws:s3:::saxit-data-$1-$SUFFIX" sse="AES256" kms_statement=""
-  if [[ "$classificatie" == geheim ]]; then
+  local classification="$1" arn="arn:aws:s3:::saxit-data-$1-$SUFFIX" sse="AES256" kms_statement=""
+  if [[ "$classification" == confidential ]]; then
     sse="aws:kms"
     kms_statement='{"Sid":"DenyWrongKmsKey","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"'"$arn"'/*","Condition":{"StringNotEquals":{"s3:x-amz-server-side-encryption-aws-kms-key-id":"'"$KEY_ARN"'"}}},'
   fi
@@ -67,13 +67,13 @@ bucket_policy() {
 {"Sid":"DenyInsecureTransport","Effect":"Deny","Principal":"*","Action":"s3:*","Resource":["$arn","$arn/*"],"Condition":{"Bool":{"aws:SecureTransport":"false"}}},
 {"Sid":"DenyUnEncryptedObjectUploads","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:x-amz-server-side-encryption":"$sse"}}},
 $kms_statement
-{"Sid":"DenyWrongClassificationTag","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:RequestObjectTag/classificatie":"$classificatie"}}}
+{"Sid":"DenyWrongClassificationTag","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:RequestObjectTag/classification":"$classification"}}}
 ]}
 EOF
 }
 
 bucket_encryption() {
-  if [[ "$1" == geheim ]]; then
+  if [[ "$1" == confidential ]]; then
     echo '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms","KMSMasterKeyID":"'"$KEY_ARN"'"},"BucketKeyEnabled":true}]}'
   else
     echo '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
@@ -81,16 +81,16 @@ bucket_encryption() {
 }
 
 step "4.1/4.2 Drie buckets, één per classificatie"
-for c in openbaar intern geheim; do
+for c in public internal confidential; do
   b="saxit-data-$c-$SUFFIX"
   make_bucket "$b"
-  aws s3api put-bucket-tagging --bucket "$b" --tagging "TagSet=[{Key=classificatie,Value=$c}]"
+  aws s3api put-bucket-tagging --bucket "$b" --tagging "TagSet=[{Key=classification,Value=$c}]"
   aws s3api put-bucket-encryption --bucket "$b" --server-side-encryption-configuration "$(bucket_encryption "$c")"
   aws s3api put-bucket-policy --bucket "$b" --policy "$(bucket_policy "$c")" && ok "policy + encryptie op $b"
 done
 
 ###################################################
-step "4.4 Logging: CloudTrail data events op de geheime bucket"
+step "4.4 Logging: CloudTrail data events op de confidential bucket"
 make_bucket "$BUCKET_LOGS"
 aws s3api put-bucket-policy --bucket "$BUCKET_LOGS" --policy "$(cat <<EOF
 {"Version":"2012-10-17","Statement":[
@@ -107,8 +107,8 @@ else
     --no-include-global-service-events --no-is-multi-region-trail >/dev/null && ok "trail $TRAIL_NAME aangemaakt"
 fi
 aws cloudtrail put-event-selectors --trail-name "$TRAIL_NAME" --event-selectors \
-  '[{"ReadWriteType":"All","IncludeManagementEvents":false,"DataResources":[{"Type":"AWS::S3::Object","Values":["arn:aws:s3:::'"$BUCKET_GEHEIM"'/"]}]}]' >/dev/null \
-  && ok "data events voor $BUCKET_GEHEIM"
+  '[{"ReadWriteType":"All","IncludeManagementEvents":false,"DataResources":[{"Type":"AWS::S3::Object","Values":["arn:aws:s3:::'"$BUCKET_CONFIDENTIAL"'/"]}]}]' >/dev/null \
+  && ok "data events voor $BUCKET_CONFIDENTIAL"
 aws cloudtrail start-logging --name "$TRAIL_NAME" && ok "trail logt"
 
 ###################################################
@@ -123,9 +123,9 @@ else
   ok "bevestigingsmail gestuurd naar $ALERT_EMAIL - klik de link aan voordat de alert echt afgaat"
 fi
 
-EVENT_PATTERN='{"source":["aws.s3"],"detail-type":["AWS API Call via CloudTrail"],"detail":{"eventSource":["s3.amazonaws.com"],"eventName":["GetObject"],"requestParameters":{"bucketName":["'"$BUCKET_GEHEIM"'"]}}}'
+EVENT_PATTERN='{"source":["aws.s3"],"detail-type":["AWS API Call via CloudTrail"],"detail":{"eventSource":["s3.amazonaws.com"],"eventName":["GetObject"],"requestParameters":{"bucketName":["'"$BUCKET_CONFIDENTIAL"'"]}}}'
 if aws events put-rule --name "$RULE_NAME" --event-pattern "$EVENT_PATTERN" \
-     --description "Geheim object gelezen uit $BUCKET_GEHEIM" >/dev/null; then
+     --description "Confidential object gelezen uit $BUCKET_CONFIDENTIAL" >/dev/null; then
   aws events put-targets --rule "$RULE_NAME" --targets '[{"Id":"sns","Arn":"'"$TOPIC_ARN"'"}]' >/dev/null \
     && ok "EventBridge-rule $RULE_NAME met SNS-target"
 else
@@ -136,7 +136,7 @@ fi
 ###################################################
 step "CloudWatch-dashboard met bucketmetrics"
 objects=""; storage=""
-for c in openbaar intern geheim; do
+for c in public internal confidential; do
   b="saxit-data-$c-$SUFFIX"
   objects+='["AWS/S3","NumberOfObjects","BucketName","'"$b"'","StorageType","AllStorageTypes"],'
   storage+='["AWS/S3","BucketSizeBytes","BucketName","'"$b"'","StorageType","StandardStorage"],'
@@ -151,7 +151,7 @@ aws cloudwatch put-dashboard --dashboard-name "$DASHBOARD_NAME" --dashboard-body
 ###################################################
 step "Klaar"
 cat <<EOF
-    Buckets: $BUCKET_OPENBAAR, $BUCKET_INTERN, $BUCKET_GEHEIM
+    Buckets: $BUCKET_PUBLIC, $BUCKET_INTERNAL, $BUCKET_CONFIDENTIAL
     Logs:    $BUCKET_LOGS
     KMS key: $KEY_ARN ($KMS_ALIAS)
     Volgende stappen:

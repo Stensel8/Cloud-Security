@@ -456,6 +456,14 @@ resource "aws_instance" "web01" {
   user_data_replace_on_change = true # anders draait een gewijzigd script nooit opnieuw (cloud-init draait maar 1x)
   user_data                   = <<-EOF
   #!/bin/bash
+  # De NAT gateway wordt in dezelfde apply aangemaakt als deze instance, en kan dus nog niet volledig
+  # doorgeschakeld zijn als user_data hier al begint (user_data draait maar 1x bij de eerste boot - een
+  # netwerktimeout hierin herstelt zichzelf dus nooit vanzelf). Wachten tot er écht een werkende internetroute
+  # is, voordat er iets gebeurt dat van internet afhangt (apt/git-mirror/Maven/npm).
+  for i in $(seq 1 30); do
+    curl -fsS --max-time 5 https://repos.codetrunk.eu >/dev/null 2>&1 && break
+    sleep 10
+  done
   sudo apt update -y
   sudo apt upgrade -y
   sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
@@ -502,6 +510,14 @@ resource "aws_instance" "web02" {
   user_data_replace_on_change = true
   user_data                   = <<-EOF
   #!/bin/bash
+  # De NAT gateway wordt in dezelfde apply aangemaakt als deze instance, en kan dus nog niet volledig
+  # doorgeschakeld zijn als user_data hier al begint (user_data draait maar 1x bij de eerste boot - een
+  # netwerktimeout hierin herstelt zichzelf dus nooit vanzelf). Wachten tot er écht een werkende internetroute
+  # is, voordat er iets gebeurt dat van internet afhangt (apt/git-mirror/Maven/npm).
+  for i in $(seq 1 30); do
+    curl -fsS --max-time 5 https://repos.codetrunk.eu >/dev/null 2>&1 && break
+    sleep 10
+  done
   sudo apt update -y
   sudo apt upgrade -y
   sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
@@ -551,6 +567,14 @@ resource "aws_instance" "app01" {
   user_data_replace_on_change = true
   user_data                   = <<-EOF
   #!/bin/bash
+  # De NAT gateway wordt in dezelfde apply aangemaakt als deze instance, en kan dus nog niet volledig
+  # doorgeschakeld zijn als user_data hier al begint (user_data draait maar 1x bij de eerste boot - een
+  # netwerktimeout hierin herstelt zichzelf dus nooit vanzelf). Wachten tot er écht een werkende internetroute
+  # is, voordat er iets gebeurt dat van internet afhangt (apt/git-mirror/Maven/npm).
+  for i in $(seq 1 30); do
+    curl -fsS --max-time 5 https://repos.codetrunk.eu >/dev/null 2>&1 && break
+    sleep 10
+  done
   sudo apt update -y
   sudo apt upgrade -y
   sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
@@ -597,6 +621,14 @@ resource "aws_instance" "app02" {
   user_data_replace_on_change = true
   user_data                   = <<-EOF
   #!/bin/bash
+  # De NAT gateway wordt in dezelfde apply aangemaakt als deze instance, en kan dus nog niet volledig
+  # doorgeschakeld zijn als user_data hier al begint (user_data draait maar 1x bij de eerste boot - een
+  # netwerktimeout hierin herstelt zichzelf dus nooit vanzelf). Wachten tot er écht een werkende internetroute
+  # is, voordat er iets gebeurt dat van internet afhangt (apt/git-mirror/Maven/npm).
+  for i in $(seq 1 30); do
+    curl -fsS --max-time 5 https://repos.codetrunk.eu >/dev/null 2>&1 && break
+    sleep 10
+  done
   sudo apt update -y
   sudo apt upgrade -y
   sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common

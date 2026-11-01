@@ -55,4 +55,6 @@ Bronnen: [Rechten van betrokkenen (Autoriteit Persoonsgegevens)](https://www.aut
 
 ## 7.4 AWS Academy Cloud Security Foundations: course assessment
 
-**Nog te doen:** zelf af te ronden in de AWS Academy-leeromgeving, bewijsscherm hier plakken.
+**Course Assessment: 100/100.** Volledig cijferoverzicht (ook Knowledge Checks per module en de labs): [`images/aws-academy-grades-overzicht.pdf`](images/aws-academy-grades-overzicht.pdf).
+
+Let op: de rij "Labs" in dat overzicht blijft `- / 100` staan, ook voor labs die ik wél heb doorlopen - de losse lab-sandbox (Vocareum) en het Canvas-cijferboek syncen niet betrouwbaar, een bekend euvel in deze AWS Academy-module (zie ook week 2.2). Per lab staat het eigenlijke bewijs daarom bij de betreffende weekopdracht (2.2, 4.5, 6.3).

@@ -39,7 +39,16 @@ Voor hulp bij het schrijven van dit script heb ik Claude Sonnet 5 gebruikt (met 
 1. AWS Academy Learner Lab starten.
 2. `./setup/lab-login.sh` draaien (zie hierboven).
 3. EC2 → Key Pairs → eigen keypair aanmaken, naam in `labnotes.txt`.
-4. S3 → eigen bucket aanmaken voor de OpenTofu state, naam in `labnotes.txt`.
+4. Eigen bucket aanmaken voor de OpenTofu state, naam in `labnotes.txt`. Dit is bewust geen Terraform/OpenTofu-resource (kip-en-ei-probleem: OpenTofu kan niet de bucket beheren waar het zijn eigen state in bewaart), dus gewoon los via de CLI:
+
+```bash
+aws s3api create-bucket --bucket <unieke-naam> --region us-east-1 --profile <lab_profile> --bucket-namespace account-regional
+```
+
+**`--bucket-namespace account-regional` is nodig** zodra de bucketnaam het patroon `prefix-accountId-regio-an` volgt (zoals hier: `...-142585515293-us-east-1-an`) - AWS introduceerde "Account Regional Namespaces" voor S3 pas rond maart 2026, en een bucketnaam die toevallig aan dat patroon voldoet vereist sindsdien deze header, anders volgt `MissingNamespaceHeader`. Zie de [AWS-aankondiging](https://aws.amazon.com/blogs/aws/introducing-account-regional-namespaces-for-amazon-s3-general-purpose-buckets).
+
+<img src="images/tfstate-bucket-aangemaakt.png" alt="Terminal met geslaagde create-bucket output: Location en BucketArn van de state-bucket" width="700">
+
 5. `opentofu/terraform.tfvars` en `opentofu/backend.hcl` aanmaken (kopieer de `.example`-bestanden) met die waardes.
 
 ```bash
@@ -81,9 +90,9 @@ Een paar dingen liepen vast tijdens het draaien van `main.tf`/`iam.tf`/`data-pro
 | S3-bucket aanmaken, policy/encryptie/public-access-block erop zetten | ✅ Ja | |
 | Object lock-configuratie van een S3-bucket uitlezen (`s3:GetBucketObjectLockConfiguration`) | ❌ Nee | Expliciete deny via een **Service Control Policy op organisatieniveau** (AWS Academy/Vocareum-account), dus niet op te lossen met IAM-rechten op je eigen rol. De `aws_s3_bucket`-resource in de AWS-provider probeert dit automatisch uit te lezen na het aanmaken (legacy/computed attribuut), waardoor `tofu apply`/`plan` een foutmelding geeft op buckets die in werkelijkheid gewoon zijn aangemaakt. Zie [week-4/README.md](../week-4/README.md) en `opentofu/data-protection.tf`. |
 
-**Gevolg hiervan voor `tofu apply`/`destroy` op `main.tf` (belangrijk, kost anders tijd):**
+**Gevolg hiervan voor `tofu apply`/`destroy` op `main.tf` (belangrijk, kost anders tijd):** dit speelde toen de buckets nog gewone OpenTofu-resources waren. Inmiddels staan ze in [`week-4/scripts/data-protection-setup.sh`](../week-4/scripts/data-protection-setup.sh) (zie [week-4/README.md](../week-4/README.md#42-drie-buckets-één-per-classificatie)), dus een gewone `tofu apply`/`destroy` op `main.tf` raakt dit probleem nu niet meer. Staat hier nog als achtergrond, voor het geval iemand het liever via OpenTofu zelf zou doen:
 
-- **`tofu destroy`** ververst bij het opbouwen van het destroy-plan áltijd eerst de volledige state, dus loopt met de 4 buckets erin altijd vast vóórdat er een plan getoond wordt. Fix: eerst `tofu state rm aws_s3_bucket.openbaar aws_s3_bucket.intern aws_s3_bucket.geheim aws_s3_bucket.cloudtrail_logs`, dan destroy, en de buckets zelf los opruimen met `aws s3 rb s3://<bucket> --force` (werkt gewoon, de SCP blokkeert alleen Terraform's eigen leesactie, niet een normale delete).
+- **`tofu destroy`** ververst bij het opbouwen van het destroy-plan áltijd eerst de volledige state, dus liep met de 4 buckets erin altijd vast vóórdat er een plan getoond werd. Fix: eerst `tofu state rm aws_s3_bucket.<naam>` op alle bucket-resources, dan destroy, en de buckets zelf los opruimen met `aws s3 rb s3://<bucket> --force` (werkt gewoon, de SCP blokkeert alleen Terraform's eigen leesactie, niet een normale delete).
 - **`tofu apply`** (eerste keer): de buckets worden prima aangemaakt, maar omdat de post-create leesactie faalt, blokkeert OpenTofu daarna álles dat van die buckets afhangt — bucket-policies, encryptie-config, public-access-block, de CloudTrail-trail, het CloudWatch-dashboard, de EventBridge-rule. Dat gebeurt niet door de foutmelding zelf, maar doordat elke volgende `plan`/`apply` de buckets opnieuw probeert te verversen en daar steeds opnieuw op vastloopt.
 - **Fix:** direct daarna nog een keer `tofu apply -refresh=false` draaien. Dat slaat de refresh van de hele state over (dus ook geen drift-detectie dit keer, voor dit ene apply onschuldig) en laat OpenTofu verdergaan met de laatst bekende waardes van de buckets, waarna de rest alsnog aangemaakt wordt.
 - **Als dat niet meteen werkt** (bv. bij een complete rebuild vanaf een lege state): de buckets komen dan uit een verse `CreateBucket`-aanroep en staan daardoor **"tainted"** (Terraform/OpenTofu markeert elke resource waarvan de `Create`-aanroep een fout teruggaf als niet-vertrouwd, ook al bestaat de bucket écht). Een volgende apply probeert zo'n tainted bucket dan te **vervangen** (afbreken + opnieuw aanmaken) - wat weer precies dezelfde leesfout raakt, en dus weer tainted wordt: een oneindige lus. Doorbreken met `tofu untaint aws_s3_bucket.<naam>` op alle 4 buckets vóór de volgende `tofu apply -refresh=false` - untaint zegt "vertrouw de bestaande bucket, niet vervangen". Kan nodig zijn voor alle 4 tegelijk, of nog een keer losjes voor `cloudtrail_logs` (die loopt vaak een rondje achter op de andere drie). Net zo lang herhalen tot `tofu plan -refresh=false` alleen nog de 3 bekende IAM-items toont.
@@ -97,6 +106,23 @@ Wat daarbij meteen bleek: **`github.com` heeft geen AAAA-record**, dus geen IPv6
 Wat het IPv6-only-deel uiteindelijk brak: **Docker's eigen build-netwerk is standaard IPv4-only**, los van de host. `docker pull` (de node/nginx base-images) werkt prima, want dat loopt via de daemon over het netwerk van de hóst. Maar een `RUN`-stap in een Dockerfile (hier: `npm install` voor de frontend) draait in een eigen, geïsoleerde bridge-container die alleen IPv4 NAT doet — en zonder NAT gateway heeft die dus geen enkel pad naar buiten. Dat raakt elke Dockerfile met een internet-afhankelijke `RUN`-stap, dus ook de backend (`mvn`).
 
 Conclusie: de NAT gateway staat er nu gewoon weer bij, en alle 4 instances zijn dual-stack (IPv4 + IPv6), niet IPv6-only. De egress-only internet gateway (gratis, voor IPv6) staat er ook nog naast. Had dit verder uitgezocht moeten worden (Docker's daemon kan met `ipv6`/`ip6tables` in `daemon.json` wél IPv6-only draaien), maar dat is precies het soort configuratie dat je niet blind midden in een deadline wil debuggen.
+
+## NAT gateway-race condition bij een verse `tofu apply`
+
+Bij een complete rebuild vanaf nul (zoals na de lab-reset van 31-10-2026) worden de NAT gateway en de vier EC2-instances in dezelfde `tofu apply` aangemaakt. `user_data` begint te draaien zodra een instance opstart, maar een NAT gateway kan na "creation complete" nog een paar minuten nodig hebben voordat hij écht verkeer doorlaat. Omdat `user_data` maar één keer draait (bij de allereerste boot), herstelt een netwerktimeout die daardoor ontstaat zichzelf nooit vanzelf - de build blijft kapot staan, ook al is de NAT gateway een paar seconden later gewoon klaar.
+
+Concreet gezien: `docker build` voor de backend faalde op `mvnw clean package` met `java.net.ConnectException: Operation timed out` (de Maven Wrapper probeert Maven zelf te downloaden, en heeft geen eigen retry-logica), terwijl `apt-get`/de git-mirror-download eerder in hetzelfde script wél doorkwamen - vermoedelijk omdat `apt` zijn eigen retries heeft en de NAT gateway intussen geleidelijk beschikbaar werd.
+
+**Fix:** een wachtlus vooraan in elk `user_data`-script (`main.tf`, alle vier de instances) die pas verdergaat zodra er écht een werkende internetroute is:
+
+```bash
+for i in $(seq 1 30); do
+  curl -fsS --max-time 5 https://repos.codetrunk.eu >/dev/null 2>&1 && break
+  sleep 10
+done
+```
+
+Wacht tot 5 minuten (30 × 10s) voordat de rest van het script start. Ruim voldoende voor de paar minuten die een NAT gateway normaal nodig heeft, en kost in de praktijk niets extra zodra de gateway al klaar is (de eerste `curl` slaagt dan meteen).
 
 ## Alternatief voor S3: Bunny.net
 

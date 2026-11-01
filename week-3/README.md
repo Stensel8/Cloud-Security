@@ -4,23 +4,41 @@ Ik verscherp de security groups uit week 1 op twee niveaus (north-south en east-
 
 ## 3.1 North-South segmentatie
 
-North-South verkeer is verkeer dat de grens van mijn datacenter/VPC oversteekt: van buiten naar binnen en andersom. In de beginsituatie (week 1) stond de `applicationtier_sg` nog open voor de hele poortrange 80-9000 vanaf `0.0.0.0/0`, overgenomen uit de aangeleverde module-baseline, maar veel ruimer dan nodig. De applicatie heeft alleen poort 8080 nodig, en alleen de presentation-load-balancer praat met de applicationtier, nooit het publieke internet rechtstreeks.
-
-In [`opentofu/main.tf`](../opentofu/main.tf) heb ik dat vernauwd tot precies dat:
+North-South verkeer is verkeer dat de grens van mijn datacenter/VPC oversteekt: van buiten naar binnen en andersom. In de beginsituatie (week 1) stond de `applicationtier_sg` nog open voor de hele poortrange 80-9000 vanaf `0.0.0.0/0`, overgenomen uit de aangeleverde module-baseline, maar veel ruimer dan nodig. In [`opentofu/main.tf`](../opentofu/main.tf) heb ik dat vernauwd tot precies poort 8080:
 
 ```hcl
-ingress {
-  description     = "HTTP 8080 ingress - alleen vanaf de presentation tier"
-  from_port       = 8080
-  to_port         = 8080
-  protocol        = "tcp"
-  security_groups = [aws_security_group.presentationtier_sg.id]
+resource "aws_vpc_security_group_ingress_rule" "application_http_from_lb" {
+  security_group_id            = aws_security_group.applicationtier_sg.id
+  description                  = "HTTP 8080 ingress - alleen van de application load balancer"
+  from_port                    = 8080
+  to_port                      = 8080
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.applicationtier_sg.id
 }
 ```
 
-Een security-group-naar-security-group-regel in plaats van een CIDR-blok: zelfs als het IP-bereik van de presentationtier ooit verandert, blijft de regel kloppen, want hij volgt de security group, niet een IP-reeks.
+Een security-group-naar-security-group-regel in plaats van een CIDR-blok: zelfs als het IP-bereik ooit verandert, blijft de regel kloppen. Let op de zelf-referentie (`applicationtier_sg` naar `applicationtier_sg`, niet naar `presentationtier_sg`): `application-lb` zit zelf óók in `applicationtier_sg`, dus verkeer van de load balancer naar `app01`/`app02` heeft als bron-SG `applicationtier_sg`. Een regel die naar `presentationtier_sg` verwijst (wat ik er eerst per ongeluk in had staan) matcht dat verkeer nooit en blokkeert zo de load balancer's eigen health checks.
 
-**Nog te doen (bewijs):** `tofu apply` met deze wijziging, daarna aantonen dat de applicatie nog steeds werkt via de presentation-load-balancer (zelfde test als in week 1), en dat een directe `curl` naar `app01:8080` vanaf buiten de `presentationtier_sg` nu wordt geweigerd.
+**Eerlijkheidshalve: deze regel alleen was niet genoeg.** De frontend (React, draait in de bezoekers-browser) roept `application-lb` rechtstreeks aan vanuit de browser (geen server-side proxy via `web01`/`web02`) - dus moet de load balancer zelf ook publiek bereikbaar zijn op 8080, niet alleen voor eigen health checks:
+
+```hcl
+resource "aws_vpc_security_group_ingress_rule" "application_http_public_ipv4" {
+  security_group_id = aws_security_group.applicationtier_sg.id
+  description        = "HTTP 8080 ingress (IPv4) - publiek, voor de frontend in de browser"
+  from_port          = 8080
+  to_port             = 8080
+  ip_protocol         = "tcp"
+  cidr_ipv4           = "0.0.0.0/0"
+}
+```
+
+Dat is dus minder streng dan "alleen via de presentation tier" - een bewuste afweging die volgt uit hoe de applicatie zelf is gebouwd (directe browser-naar-API-calls), niet een gat dat ik over het hoofd heb gezien. North-South blijft wel degelijk verscherpt: van de oorspronkelijke 80-9000 naar precies 8080, en `app01`/`app02` hebben zelf geen publiek IP (zie week 1, 1.3) - alleen de load balancer is van buiten bereikbaar, nooit de instances direct.
+
+Bewijs: een directe `curl` naar `app01` op 8080 (zonder de load balancer ertussen) vanaf mijn eigen laptop loopt gewoon vast op een timeout, want `app01` heeft geen publiek IP:
+
+<img src="images/curl-app01-8080-timeout.png" alt="curl --max-time 5 http://10.0.3.16:8080/api/products: Connection timed out after 5004 milliseconds" width="700">
+
+De applicatie werkt intussen gewoon via de load balancers (zie het bewijs in week 1, 1.1).
 
 ## 3.2 East-West segmentatie (microsegmentatie)
 
@@ -40,7 +58,19 @@ ingress {
 
 Ik gebruik hier CIDR-blokken van de applicationtier-subnets in plaats van een verwijzing naar `applicationtier_sg` zelf: die security group staat in de andere, gepeerde VPC, en niet elke AWS-omgeving (zeker niet een Learner Lab) staat cross-VPC security-group-referenties via peering toe. Subnet-CIDR's zijn hier het betrouwbare alternatief en bereiken hetzelfde doel: alleen de app-servers mogen nog bij de database, de webservers (presentationtier) en de rest van het internet niet meer.
 
-**Nog te doen (bewijs):** opnieuw `tofu apply`, en aantonen (bijvoorbeeld met `mysql -h <rds-endpoint>` vanaf `app01` versus vanaf `web01`) dat alleen de applicationtier nog bij de database kan.
+Bewijs, eerst de regel zelf in de AWS-console (`rds_security_group`, inbound rules): twee regels, allebei TCP 3306, bron `10.0.3.0/24` en `10.0.4.0/24` - exact de twee applicationtier-subnets, niets anders:
+
+<img src="images/rds-sg-inbound-rules-source.png" alt="rds_security_group inbound rules: 2x TCP 3306, bron 10.0.3.0/24 en 10.0.4.0/24" width="900">
+
+<img src="images/rds-sg-inbound-rules-description.png" alt="Zelfde regels, nu met de Description-kolom zichtbaar: 'SQL ingress - alleen vanaf de applicationtier-subnets (east-west)'" width="900">
+
+En dan de praktijktest: een TCP-verbinding naar de database, vanaf `app01` (applicationtier, moet lukken) versus vanaf `web01` (presentationtier, moet mislukken):
+
+<img src="images/app01-naar-rds-gelukt.png" alt="Vanaf app01: TCP-verbinding naar cloudsecdb:3306 - VERBINDING GELUKT" width="800">
+
+<img src="images/web01-naar-rds-mislukt.png" alt="Vanaf web01: TCP-verbinding naar cloudsecdb:3306 - VERBINDING MISLUKT" width="800">
+
+Beide tests gebruiken dezelfde, simpele raw-TCP-check (`/dev/tcp/<endpoint>/3306` in bash, geen database-client nodig) naar exact dezelfde hostnaam - het enige verschil is welke subnet de instance in zit, en dat is precies wat de security group afdwingt.
 
 ## 3.3 Immutable infrastructure via een pipeline
 

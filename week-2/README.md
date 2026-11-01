@@ -20,11 +20,21 @@ Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
 Een eenvoudiger alternatief, dat ik ook aan SaxIT zou noemen: het wachtwoord zelf laten staan, maar het uit OpenTofu/user-data halen en in **AWS Secrets Manager** zetten met automatische rotatie, en de applicatie het wachtwoord bij het opstarten laten ophalen via dezelfde instance profile. Minder "native" dan IAM-tokens, maar eenvoudiger te bouwen en nog steeds geen statisch wachtwoord meer in code.
 
-**Nog te doen (bewijs):** printscreens van de AWS-console-stappen (IAM-rol aanmaken, policy toevoegen, instance profile koppelen aan `app01`), inclusief de rode foutmelding bij de uiteindelijke apply. Dat is wat de opdracht expliciet vraagt ("ondanks dat je rode foutmeldingen krijgt").
+De rode foutmelding bij de uiteindelijke `tofu apply` - precies wat de opdracht vraagt ("ondanks dat je rode foutmeldingen krijgt"):
+
+<img src="images/iam-createrole-accessdenied.png" alt="tofu apply: Error creating IAM Role (app-tier-rds-iam-role), AccessDenied op iam:CreateRole voor de student-rol" width="800">
+
+**Nog te doen (bewijs):** optioneel nog printscreens van dezelfde stappen los in de AWS-console (IAM-rol aanmaken, policy toevoegen) - geeft hetzelfde `AccessDenied`-resultaat als hierboven, dus niet strikt nodig naast de apply-foutmelding.
 
 ## 2.2 AWS Academy Cloud Security Foundations: Lab 3.1 en Knowledge check
 
 Dit moet ik zelf doen in de AWS Academy-leeromgeving; dat kan ik niet namens jou uitvoeren, dat is online door de docent te controleren.
+
+**Bewijs:**
+- **Module 3 Knowledge Check: 90/100**, zie het volledige cijferoverzicht bij week 7.4 ([`week-7/images/aws-academy-grades-overzicht.pdf`](../week-7/images/aws-academy-grades-overzicht.pdf)).
+- **Lab 3.1 ("Using Resource-Based Policies to Secure an S3 Bucket") zelf doorlopen**: de policy die ik daarbij in de lab-omgeving heb aangemaakt/gebruikt staat in [`week-2/lab-3.1-developergrouppolicy.json`](lab-3.1-developergrouppolicy.json).
+
+**Let op - bekende AWS Academy-eigenaardigheid:** het cijferoverzicht laat bij "Labs" standaard `- / 100` zien, ook nadat een lab echt is doorlopen. Dat is geen afwijking bij mij specifiek; de lab-omgeving (een aparte Vocareum-sandbox) en het Canvas-cijferboek syncen niet betrouwbaar met elkaar, iets wat ook bij andere studenten in deze module voorkomt. Het gedownloade policy-bestand hierboven is daarom het eigenlijke bewijs dat de lab is uitgevoerd, naast de wél correct geregistreerde Knowledge Check-score.
 
 **Nog te doen:** Lab 3.1 en de bijbehorende Knowledge check afronden in de module *AWS Academy Cloud Security Foundations*, en het bewijsscherm hier plakken.
 

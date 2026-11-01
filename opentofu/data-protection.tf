@@ -13,19 +13,19 @@
 # 4.3: eigen (BYOK) KMS-sleutel voor de geheime bucket.
 # Het sleutelmateriaal zelf genereer je met OpenSSL en importeer je los met de AWS CLI (geen OpenTofu-resource
 # voor de import zelf, dat is een eenmalige, stateful actie) - zie week-4/README.md voor de stappen.
-resource "aws_kms_external_key" "geheim_byok" {
+resource "aws_kms_external_key" "confidential_byok" {
   description             = "BYOK-sleutel (eigen keymateriaal) voor de S3-bucket met geheime documenten"
   deletion_window_in_days = 7
   key_usage               = "ENCRYPT_DECRYPT"
 
   tags = {
-    classificatie = "geheim"
+    classification = "confidential"
   }
 }
 
 # Vaste alias zodat week-4/scripts/data-protection-setup.sh de sleutel kan opzoeken zonder een OpenTofu-output
 # nodig te hebben.
-resource "aws_kms_alias" "geheim_byok" {
-  name          = "alias/saxit-geheim-byok"
-  target_key_id = aws_kms_external_key.geheim_byok.id
+resource "aws_kms_alias" "confidential_byok" {
+  name          = "alias/saxit-confidential-byok"
+  target_key_id = aws_kms_external_key.confidential_byok.id
 }

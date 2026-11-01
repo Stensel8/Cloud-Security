@@ -10,6 +10,8 @@ Dataclassificatie en S3-buckets per classificatie (4.1–4.2), een eigen (BYOK) 
 | **Intern** | Personeelsplanningen, interne processen, niet-gevoelige bedrijfsinformatie | Niet bedoeld voor klanten of publiek, maar een lek is geen ramp; wel reputatieschade of concurrentienadeel mogelijk |
 | **Geheim** | Klantgegevens in het CMDB (contactpersonen, asset-inventarissen van klanten), inloggegevens, persoonsgegevens | Direct onder de AVG (zie 7.3), bedrijfsgevoelige informatie van klanten zelf; een lek is een meldingsplichtig datalek en kan klanten direct schaden |
 
+De namen van de classificaties blijven Nederlands (dat zijn de officiële termen uit de opdracht), maar de AWS-resources zelf (bucketnamen, tags, variabelen in het script) zijn in het Engels, zoals gebruikelijk in infrastructuurcode: **Openbaar → `public`**, **Intern → `internal`**, **Geheim → `confidential`**.
+
 Per categorie, concrete maatregelen in de cloudomgeving:
 
 | Maatregel | Openbaar | Intern | Geheim |
@@ -22,41 +24,37 @@ Per categorie, concrete maatregelen in de cloudomgeving:
 
 ## 4.2 Drie buckets, één per classificatie
 
-In [`opentofu/data-protection.tf`](../opentofu/data-protection.tf) staan drie buckets (`saxit-data-openbaar-*`, `saxit-data-intern-*`, `saxit-data-geheim-*`), elk met:
+**Waarom een los bash-script in plaats van OpenTofu.** Eerst stonden de buckets, policies, encryptie, CloudTrail, EventBridge, SNS en het dashboard allemaal gewoon als OpenTofu-resources in `opentofu/data-protection.tf`. De AWS-provider leest bij ieder `aws_s3_bucket`-resource echter standaard ook de object lock-configuratie uit (een verouderd/computed attribuut, onderdeel van de normale Create/Read-cyclus van die resource) - en die ene leesactie is in de AWS Academy Learner Lab geblokkeerd door een Service Control Policy op organisatieniveau. Niet op te lossen met IAM-rechten op mijn eigen rol: dit is een org-brede restrictie. Het bucket zelf wordt wél gewoon aangemaakt, maar OpenTofu markeert 'm daardoor als "tainted", en een volgende `apply` probeert 'm dan te vervangen - wat weer exact dezelfde leesfout raakt, dus weer tainted wordt. Resultaat: een oneindige lus, of op zijn minst een hoop handmatig untainten en losse `-refresh=false`-applies om er doorheen te komen (zie [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab) voor hoe dat via OpenTofu wél lukt, mocht je dat willen zien).
 
-- **Standaardencryptie verplicht**: SSE-S3 voor openbaar/intern, SSE-KMS met de eigen sleutel uit 4.3 voor geheim.
-- **Een bucket policy die twee dingen afdwingt**: (1) een upload zonder de juiste `x-amz-server-side-encryption`-header wordt geweigerd, en (2) een object zonder de `classificatie`-tag die bij déze bucket hoort, wordt ook geweigerd. Zo kan een geheim bestand niet per ongeluk (of expres) als "openbaar" getagd in de verkeerde bucket belanden.
-- **Block Public Access volledig aan**: "Openbaar" is hier een classificatie van het dóel van de data binnen SaxIT (voor iedereen binnen de organisatie leesbaar), geen publiek-op-internet bucket.
-
-```hcl
-statement {
-  sid    = "DenyWrongClassificationTag"
-  effect = "Deny"
-  actions   = ["s3:PutObject"]
-  resources = ["${each.value.bucket_arn}/*"]
-  condition {
-    test     = "StringNotEquals"
-    variable = "s3:RequestObjectTag/classificatie"
-    values   = [each.value.classificatie]
-  }
-}
-```
-
-**Lab-eigenaardigheid bij `tofu apply`:** de buckets worden gewoon aangemaakt, maar OpenTofu/de AWS-provider geeft er een rode foutmelding bij ("reading ... object lock configuration: AccessDenied"). Dat komt door een Service Control Policy op organisatieniveau die `s3:GetBucketObjectLockConfiguration` blokkeert — een legacy/computed attribuut dat de provider automatisch probeert uit te lezen na het aanmaken, los van wat er in deze `.tf`-bestanden staat. De bucket en alle resources die ervan afhangen (policy, encryptie, public-access-block) werken gewoon; alleen die ene leesactie faalt, bij elke `plan`/`apply` opnieuw. Zie de tabel in [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
-
-Drie demobestanden staan al klaar in [`demo-files/`](demo-files/): [`openbaar-persbericht.txt`](demo-files/openbaar-persbericht.txt), [`intern-personeelsplanning.txt`](demo-files/intern-personeelsplanning.txt) en [`geheim-klantgegevens.txt`](demo-files/geheim-klantgegevens.txt) (met nepdata, geen echte klantgegevens). Die upload ik met de bijbehorende tag:
+Een gewone `aws s3api create-bucket` doet die extra leesactie nooit, en heeft dit probleem dus helemaal niet. Daarom staat dit stuk nu in [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh), een idempotent AWS CLI-script (opnieuw draaien hergebruikt bestaande resources i.p.v. te falen). Alleen de BYOK KMS-sleutel (4.3, geen last van dit probleem) blijft in [`opentofu/data-protection.tf`](../opentofu/data-protection.tf) staan, via een vaste alias (`alias/saxit-confidential-byok`) zodat het script 'm kan opzoeken zonder een OpenTofu-output nodig te hebben. Draaien:
 
 ```bash
-aws s3api put-object --bucket saxit-data-openbaar-<suffix> --key openbaar-persbericht.txt \
-  --body demo-files/openbaar-persbericht.txt --tagging "classificatie=openbaar" --server-side-encryption AES256
-
-aws s3api put-object --bucket saxit-data-geheim-<suffix> --key geheim-klantgegevens.txt \
-  --body demo-files/geheim-klantgegevens.txt --tagging "classificatie=geheim" --server-side-encryption aws:kms --ssekms-key-id <kms-key-id>
+./week-4/scripts/data-protection-setup.sh <unieke-suffix> <mailadres-voor-de-alert>
 ```
 
-**Hoe zorg ik dat een specifieke gebruiker alleen in bepaalde buckets mag schrijven?** Via een IAM-policy die, net als bij de RDS-rol in week 2.1, precies één of twee bucket-ARN's als `Resource` heeft in plaats van `*`. Bijvoorbeeld een rol voor de supportmedewerkers die alleen `s3:PutObject`/`s3:GetObject` mag op `saxit-data-intern-*`, en expliciet geen rechten op `saxit-data-geheim-*`. Dit kan ik in de Learner Lab niet aantonen (zelfde IAM-beperking als in week 2.1), maar het principe is identiek aan wat ik daar al heb uitgewerkt.
+Het script zet per classificatiebucket (`saxit-data-public-*`, `saxit-data-internal-*`, `saxit-data-confidential-*` - Engelse resource-namen, zie de vertaaltabel in 4.1 voor hoe die zich verhouden tot de Nederlandse classificatietermen uit de opdracht):
 
-**Nog te doen (bewijs):** `tofu apply`, screenshots van de drie buckets met hun encryptie-instelling, en een mislukte upload-poging (verkeerde tag of geen encryptie) die door de policy geweigerd wordt.
+- **Standaardencryptie verplicht**: SSE-S3 voor public/internal, SSE-KMS met de eigen sleutel uit 4.3 voor confidential.
+- **Een bucket policy die drie dingen afdwingt**: (1) alleen HTTPS, (2) een upload zonder de juiste `x-amz-server-side-encryption`-header wordt geweigerd, en (3) een object zonder de `classification`-tag die bij déze bucket hoort, wordt ook geweigerd. Zo kan een confidential bestand niet per ongeluk (of expres) als "public" getagd in de verkeerde bucket belanden.
+- **Block Public Access volledig aan**: "Public" is hier een classificatie van het dóel van de data binnen SaxIT (voor iedereen binnen de organisatie leesbaar), geen publiek-op-internet bucket.
+
+```bash
+{"Sid":"DenyWrongClassificationTag","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:RequestObjectTag/classification":"$classification"}}}
+```
+
+Drie demobestanden staan al klaar in [`demo-files/`](demo-files/): [`public-press-release.txt`](demo-files/public-press-release.txt), [`internal-staff-planning.txt`](demo-files/internal-staff-planning.txt) en [`confidential-customer-data.txt`](demo-files/confidential-customer-data.txt) (met nepdata, geen echte klantgegevens). Die upload ik met de bijbehorende tag:
+
+```bash
+aws s3api put-object --bucket saxit-data-public-<suffix> --key public-press-release.txt \
+  --body demo-files/public-press-release.txt --tagging "classification=public" --server-side-encryption AES256
+
+aws s3api put-object --bucket saxit-data-confidential-<suffix> --key confidential-customer-data.txt \
+  --body demo-files/confidential-customer-data.txt --tagging "classification=confidential" --server-side-encryption aws:kms --ssekms-key-id <kms-key-id>
+```
+
+**Hoe zorg ik dat een specifieke gebruiker alleen in bepaalde buckets mag schrijven?** Via een IAM-policy die, net als bij de RDS-rol in week 2.1, precies één of twee bucket-ARN's als `Resource` heeft in plaats van `*`. Bijvoorbeeld een rol voor de supportmedewerkers die alleen `s3:PutObject`/`s3:GetObject` mag op `saxit-data-internal-*`, en expliciet geen rechten op `saxit-data-confidential-*`. Dit kan ik in de Learner Lab niet aantonen (zelfde IAM-beperking als in week 2.1), maar het principe is identiek aan wat ik daar al heb uitgewerkt.
+
+**Nog te doen (bewijs):** `tofu apply` (voor de KMS-sleutel) en daarna `week-4/scripts/data-protection-setup.sh` draaien, screenshots van de drie buckets met hun encryptie-instelling, en een mislukte upload-poging (verkeerde tag of geen encryptie) die door de policy geweigerd wordt.
 
 ## 4.3 Bring your own key (BYOK) voor de geheime bucket
 
@@ -87,32 +85,23 @@ aws kms import-key-material \
 shred -u plaintext-key.bin
 ```
 
-Daarna verwijst de `aws_s3_bucket_server_side_encryption_configuration` van de geheime bucket naar deze sleutel (`kms_master_key_id = aws_kms_external_key.geheim_byok.arn`), zie [`opentofu/data-protection.tf`](../opentofu/data-protection.tf).
+Daarna zoekt [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh) deze sleutel op via de vaste alias (`alias/saxit-confidential-byok`) en zet 'm als standaardencryptie op de geheime bucket (`aws s3api put-bucket-encryption` met `SSEAlgorithm: aws:kms` en dit `KMSMasterKeyID`) - zie 4.2 voor waarom dat via een los script gaat in plaats van een OpenTofu-resource.
 
 **Nog te doen (bewijs):** screenshot van de KMS-sleutel in de AWS-console met status "Imported key material", en van de encryptie-instelling van de geheime bucket die naar die sleutel wijst.
 
 ## 4.4 Logging en alerting op de geheime bucket
 
-In [`opentofu/data-protection.tf`](../opentofu/data-protection.tf):
+Ook dit zet [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh) neer (zie 4.2 voor waarom via een los script):
 
-- Een **CloudTrail-trail** die specifiek **data events** (object-niveau, niet alleen management-events) logt voor de geheime bucket: elke `GetObject`, `PutObject`, etc. op dat ene bucket.
-- Een **EventBridge-rule** die matcht op `GetObject`-events via CloudTrail voor die bucket, en die doorstuurt naar een **SNS-topic** met een e-mail-abonnement. Dus een e-mail bij elke download van een geheim object.
-- Een **CloudWatch-dashboard** (`saxit-s3-classificatie`) met het aantal objecten en de bucketgrootte per classificatie, zodat in één oogopslag te zien is hoeveel data er in elke categorie zit.
+- Een **CloudTrail-trail** (`saxit-confidential-bucket-trail`) die specifiek **data events** (object-niveau, niet alleen management-events) logt voor de geheime bucket: elke `GetObject`, `PutObject`, etc. op dat ene bucket, naar een aparte logs-bucket (`saxit-cloudtrail-logs-*`).
+- Een **EventBridge-rule** (`saxit-confidential-object-read`) die matcht op `GetObject`-events via CloudTrail voor die bucket, en die doorstuurt naar een **SNS-topic** (`saxit-confidential-bucket-alerts`) met een e-mail-abonnement. Dus een e-mail bij elke download van een geheim object.
+- Een **CloudWatch-dashboard** (`saxit-s3-classification`) met het aantal objecten en de bucketgrootte per classificatie, zodat in één oogopslag te zien is hoeveel data er in elke categorie zit.
 
-```hcl
-resource "aws_cloudwatch_event_rule" "geheim_object_read" {
-  event_pattern = jsonencode({
-    source      = ["aws.s3"]
-    detail-type = ["AWS API Call via CloudTrail"]
-    detail = {
-      eventName         = ["GetObject"]
-      requestParameters = { bucketName = [aws_s3_bucket.geheim.id] }
-    }
-  })
-}
+```json
+{"source":["aws.s3"],"detail-type":["AWS API Call via CloudTrail"],"detail":{"eventSource":["s3.amazonaws.com"],"eventName":["GetObject"],"requestParameters":{"bucketName":["saxit-data-confidential-<suffix>"]}}}
 ```
 
-**Als Eventbridge een IAM-foutmelding geeft** (te weinig rechten, net als bij de IAM-rol in week 2.1): de rule zelf staat dan nog steeds correct in OpenTofu/de console, alleen de uiteindelijke koppeling met het SNS-target kan in de Learner Lab stuklopen op `iam:PassRole`/`events:PutTargets`-rechten. In dat geval laat ik met een screenshot van de EventBridge-rule-configuratie zien hóe ik de rule zou instellen, ook al werkt de laatste schakel niet in deze beperkte omgeving. Vergelijkbaar met wat ik in 2.1 ook al moest doen.
+**Als `aws events put-rule` een foutmelding geeft** (te weinig rechten in de Learner Lab, zelfde soort beperking als de IAM-rol in week 2.1): het script vangt dat expliciet af en print bovenstaand event pattern alsnog, zodat ik met een screenshot van die output kan laten zien hóe ik de rule zou instellen, ook al werkt de laatste schakel niet in deze beperkte omgeving. Vergelijkbaar met wat ik in 2.1 ook al moest doen. De SNS-topic-policy die EventBridge toestemming geeft om te publiceren (`events.amazonaws.com` als principal) zet het script zelf, dus die laatste koppeling hoeft geen aparte IAM-rol te hebben zoals bijvoorbeeld een Lambda-target dat wel zou vragen.
 
 **Nog te doen (bewijs):** een download van een object uit de geheime bucket, een screenshot van de bijbehorende regel in het CloudTrail-logbestand, een screenshot van de ontvangen e-mail-alert (of van de EventBridge-configuratie als die laatste stap vastloopt op rechten), en een screenshot van het CloudWatch-dashboard.
 

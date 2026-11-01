@@ -9,11 +9,12 @@
 - [x] Keypair en S3-bucket voor de OpenTofu-state aangemaakt (screenshots in `images/`)
 - [x] `labnotes.txt` en `opentofu/terraform.tfvars`/`backend.hcl` ingevuld (keyname, state-bucket, lab-profile, eigen IP)
 - [x] `main.tf`/`bastion.tf`/`rds.tf` gebruiken nu `var.*` in plaats van `REPLACE_WITH_*`, en setup is herschreven in `setup/README.md`
+- [x] `rds-bootstrap/rds.tf` los draaien, endpoint/db-vpc-id/route-table-id noteren, lokale state daarna verwijderen (opnieuw gedaan na de lab-reset van 31-10-2026, inclusief screenshots van de state-opruiming + citaat uit de handleiding)
+- [x] Die drie waardes in `labnotes.txt` en `opentofu/terraform.tfvars` gezet
+- [x] `tofu apply` op `main.tf` gedraaid (incl. een NAT gateway-race-condition gevonden en gefixt, zie `setup/README.md`)
+- [x] Bewijs 1.1: load balancers "healthy" + werkende app via de presentation-lb DNS-naam (screenshots in `images/`)
+- [x] Bewijs 1.3: SSH rechtstreeks naar `app01` mislukt, via de bastion host lukt het (screenshots in `images/`)
+- [x] Mermaid-netwerktekening bijgewerkt naar de huidige architectuur (public subnets met bastion+beide LB's, NAT gateway, dual-stack) - geen Cloudcraft nodig
 
 ## Nog te doen
-- [ ] `rds-bootstrap/rds.tf` los draaien, endpoint/db-vpc-id/route-table-id noteren, lokale state daarna verwijderen
-- [ ] Die drie waardes in `labnotes.txt` en `opentofu/terraform.tfvars` zetten
-- [ ] `tofu apply` op `main.tf` draaien, minimaal 10 min wachten
-- [ ] Bewijs 1.1: load balancers "healthy" + werkende app via de presentation-lb DNS-naam (screenshot)
-- [ ] Bewijs 1.3: SSH rechtstreeks naar `app01` moet mislukken, via de bastion host moet het lukken (screenshot van beide pogingen)
-- [ ] Optioneel: netwerktekening ook even in Cloudcraft, als alternatief/aanvulling op het Mermaid-diagram
+Geen, week 1 is compleet.

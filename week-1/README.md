@@ -67,7 +67,43 @@ Rest van de instellingen laat ik op de AWS-standaard staan: Object Ownership op 
 
 Keypair-naam, bucketnaam, account-ID en mijn eigen IP staan nergens in `main.tf` zelf, maar in `terraform.tfvars`/`backend.hcl` (niet gecommit) en in `labnotes.txt`. Volledige installatiehandleiding, stap voor stap: [`setup/README.md`](../setup/README.md).
 
-**Nog te doen (bewijs):** `tofu apply`-output, de resource map van beide load balancers met status "healthy", en een screenshot van de werkende applicatie via de DNS-naam van de presentation-load-balancer.
+<img src="images/main-tf-init.png" alt="tofu init -backend-config=backend.hcl: backend succesvol geconfigureerd" width="720">
+
+<img src="images/main-tf-apply-plan.png" alt="tofu apply-plan voor main.tf: 65 to add, 0 to change, 0 to destroy" width="720">
+
+<img src="images/main-tf-apply-confirm-create.png" alt="Plan bevestigd met yes, VPC/subnets/EC2's/load balancers worden aangemaakt" width="720">
+
+<img src="images/load-balancers-overzicht.png" alt="EC2-console, Load balancers-overzicht: presentation-lb en application-lb, beide Active, Dualstack" width="900">
+
+<img src="images/resource-map-presentation-lb.png" alt="Resource map presentation-lb: listener HTTP:80 -> target group -> 2 targets, beide Healthy" width="900">
+
+<img src="images/resource-map-application-lb.png" alt="Resource map application-lb: listener HTTP:8080 -> target group -> 2 targets, beide Healthy" width="900">
+
+<img src="images/applicatie-werkt-via-presentation-lb.png" alt="Werkende Product App via presentation-lb-4216771.us-east-1.elb.amazonaws.com, DevTools Network-tab toont 200 OK op de echte ELB-DNS-naam" width="900">
+
+Alle "Nog te doen (bewijs)"-punten van 1.1 zijn hiermee compleet.
+
+### RDS-bootstrap draaien, en daarna de lokale state weggooien
+
+<img src="images/rds-bootstrap-apply-plan-1.png" alt="tofu apply-plan voor rds-bootstrap: aws_db_instance.cloudsecdb wordt aangemaakt" width="720">
+
+<img src="images/rds-bootstrap-apply-confirm-create.png" alt="Plan bevestigd met yes, VPC/subnets/security group/database worden aangemaakt" width="720">
+
+<img src="images/rds-bootstrap-apply-complete.png" alt="Apply complete, 6 resources toegevoegd" width="720">
+
+Endpoint, db-VPC-ID en de route table-ID van die VPC noteer ik in `labnotes.txt` en zet ik in `opentofu/terraform.tfvars`, zodat `main.tf` straks de VPC-peering naar de juiste database kan maken.
+
+Daarna verwijder ik de lokale `.terraform/` en `terraform.tfstate*` van dit losse script. Dat is geen eigen voorzichtigheidsmaatregel, maar letterlijk wat de handleiding van school voorschrijft (`school docs/handleiding/Cloud Sec module launch begin environment V1.docx`):
+
+> *"We don't want the database instance to be deleted with a Terraform destroy command, so we delete all files in the directory that are related to Terraform, including the state file."*
+
+```bash
+rm -rf opentofu/rds-bootstrap/.terraform opentofu/rds-bootstrap/terraform.tfstate*
+```
+
+<img src="images/rds-bootstrap-state-opgeruimd.png" alt="Terminal: rm -rf van .terraform en terraform.tfstate*, daarna een lege rds-bootstrap-map op die twee na" width="600">
+
+De database zelf blijft gewoon bestaan in AWS; alleen OpenTofu's eigen boekhouding van dit losse script is weg. Een `tofu destroy` op `main.tf` kent deze resources dus niet en kan ze nooit meenemen.
 
 ### Netwerktekening
 
@@ -76,35 +112,30 @@ In plaats van Cloudcraft gebruik ik een Mermaid-diagram, zodat de tekening metee
 ```mermaid
 flowchart TB
     internet(("Internet"))
+    browser["Browser\n(roept presentation-lb én\napplication-lb rechtstreeks aan,\nzie week 3.1)"]
+    internet --- browser
 
-    subgraph VPC1["saxit_vpc (10.0.0.0/16)"]
+    subgraph VPC1["saxit_vpc (10.0.0.0/16, dual-stack, eigen /56 IPv6-blok)"]
         direction TB
-        bastion["bastion (EC2)\nsubnet presentation-1"]
 
-        subgraph PLB["presentation-lb (ALB, poort 80)"]
-        end
-
-        subgraph PRES["presentationtier (presentation_sg)"]
+        subgraph PUB["Public subnets: 10.0.10.0/24 (1a), 10.0.11.0/24 (1b)"]
             direction LR
-            subgraph PRES1["subnet presentation-1\n10.0.1.0/24, us-east-1a"]
-                web01["web01 (EC2)\nReact frontend"]
-            end
-            subgraph PRES2["subnet presentation-2\n10.0.2.0/24, us-east-1b"]
-                web02["web02 (EC2)\nReact frontend"]
-            end
+            bastion["bastion (EC2)\nbastion_sg"]
+            PLB["presentation-lb\nALB, dualstack, poort 80"]
+            ALB2["application-lb\nALB, dualstack, poort 8080"]
+            NAT["NAT gateway\n(IPv4-egress)"]
         end
 
-        subgraph ALB2["application-lb (ALB, poort 8080)"]
-        end
-
-        subgraph APPL["applicationtier (applicationtier_sg)"]
+        subgraph PRES["presentationtier (presentationtier_sg)\n10.0.1.0/24 (1a), 10.0.2.0/24 (1b)"]
             direction LR
-            subgraph APPL1["subnet appl-1\n10.0.3.0/24, us-east-1a"]
-                app01["app01 (EC2)\nSpring backend"]
-            end
-            subgraph APPL2["subnet appl-2\n10.0.4.0/24, us-east-1b"]
-                app02["app02 (EC2)\nSpring backend"]
-            end
+            web01["web01 (EC2)\nReact frontend, IPv6-only target"]
+            web02["web02 (EC2)\nReact frontend, IPv6-only target"]
+        end
+
+        subgraph APPL["applicationtier (applicationtier_sg)\n10.0.3.0/24 (1a), 10.0.4.0/24 (1b)"]
+            direction LR
+            app01["app01 (EC2)\nSpring backend"]
+            app02["app02 (EC2)\nSpring backend"]
         end
     end
 
@@ -112,21 +143,22 @@ flowchart TB
         rds[("RDS MariaDB\ncloudsecdb\nrds_security_group: TCP 3306")]
     end
 
-    internet -- "HTTP 80" --> PLB
+    browser -- "HTTP 80" --> PLB
+    browser -- "HTTP 8080\n(rechtstreeks, geen proxy)" --> ALB2
     internet -. "SSH 22, alleen eigen IP\n(bastion_sg)" .-> bastion
     bastion -. "SSH 22\n(sg-naar-sg)" .-> PRES
     bastion -. "SSH 22\n(sg-naar-sg)" .-> APPL
-    PLB --> web01
-    PLB --> web02
-    web01 -- "HTTP 80-9000\n(0.0.0.0/0, nog niet verscherpt)" --> ALB2
-    web02 -- "HTTP 80-9000\n(0.0.0.0/0, nog niet verscherpt)" --> ALB2
+    PLB -- "IPv6" --> web01
+    PLB -- "IPv6" --> web02
     ALB2 --> app01
     ALB2 --> app02
+    web01 -. "apt/Docker-mirror/npm\n(IPv4 via NAT)" .-> NAT
+    app01 -. "apt/Docker-mirror/Maven\n(IPv4 via NAT)" .-> NAT
     app01 -- "TCP 3306\nVPC peering" --> rds
     app02 -- "TCP 3306\nVPC peering" --> rds
 ```
 
-**Nog te doen (bewijs):** als alternatief, of aanvullend, nog een export uit Cloudcraft met de echte resource-ID's en mijn toegekende IP-ranges.
+IPv6-egress (via een gratis egress-only internet gateway, niet apart getekend) loopt parallel aan de NAT gateway-pijlen hierboven - zie [setup/README.md](../setup/README.md#ipv6-only-experiment-en-waarom-alles-nu-dual-stack-is) voor waarom alles dual-stack is in plaats van IPv6-only.
 
 ## 1.2 Advies: het Shared Responsibility Model voor SaxIT
 
@@ -169,6 +201,14 @@ ingress {
 }
 ```
 
-**Nog te doen (bewijs):** na `tofu apply`, een proef vanaf mijn eigen laptop: direct SSH'en naar `app01` moet mislukken (timeout), SSH via de bastion host (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) moet lukken. Screenshot van beide pogingen.
+Bewijs vanaf mijn eigen laptop: direct SSH'en naar `app01` (privé-IP, niet routeerbaar vanaf het internet) hangt/mislukt, SSH via de bastion host (`ssh -J ubuntu@<bastion-ip> ubuntu@<app01-private-ip>`) lukt meteen:
+
+<img src="images/ssh-direct-faalt-via-bastion-lukt.png" alt="Terminal: directe SSH naar 10.0.3.16 wordt afgebroken (^C), SSH via -J ubuntu@bastion-ip lukt en logt in op ip-10-0-3-16" width="800">
+
+En ter controle in de AWS-console dat dit ook echt de juiste IP's zijn: alle vier de web-/app-instances hebben geen publiek IPv4-adres, alleen de bastion heeft er één (`35.173.231.84`):
+
+<img src="images/ec2-instances-overzicht-public-ip.png" alt="EC2 Instances-overzicht: app01/app02/web01/web02 hebben Public IPv4 address '-', bastion heeft 35.173.231.84" width="900">
+
+<img src="images/app01-instance-summary-geen-public-ip.png" alt="Instance summary van app01: Private IPv4 10.0.3.16, Public IPv4 address leeg" width="900">
 
 Bronnen: [AWS: wat is een bastion host](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/bastion-hosts.html), [SSH ProxyJump (OpenSSH)](https://www.ssh.com/academy/ssh/proxyjump).
