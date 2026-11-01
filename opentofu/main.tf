@@ -360,10 +360,11 @@ resource "aws_vpc_security_group_egress_rule" "application_egress_ipv6" {
   cidr_ipv6         = "::/0"
 }
 ###################################################
-# Presentationtier-subnets: dual-stack, geen ipv6_native. web01/web02 krijgen dus technisch ook een privé-IPv4
-# (onvermijdelijk op een dual-stack subnet), maar die wordt nergens voor gebruikt: web-route hieronder heeft geen
-# IPv4-route (geen IGW, geen NAT), dus al het verkeer (ingress via de LB, egress naar internet) loopt over IPv6.
-# ipv6_native (een echt IPv4-loze subnet) zou dat niet beter maken, maar forceert wel vervanging van de subnet -
+# Presentationtier-subnets: dual-stack, geen ipv6_native. web01/web02 krijgen dus ook een privé-IPv4, en
+# web-route (hierboven) heeft zowel een NAT- als een egress-only-route, dus egress kan via beide. Alleen de
+# inkomende kant is IPv6-only: de target group van presentation-lb (verderop) is type "ipv6" en registreert
+# web01/web02 op hun IPv6-adres - de browser praat dus altijd via IPv6 met de instance, nooit via IPv4.
+# ipv6_native (een echt IPv4-loze subnet) zou dat niet veranderen, maar forceert wel vervanging van de subnet -
 # en een ALB-ENI in de oude subnet liet meer dan een uur niet los, wat het te risicovol/traag maakt voor nu.
 resource "aws_subnet" "saxit_subnet_presentation_1" {
   vpc_id                          = aws_vpc.saxit_vpc.id
