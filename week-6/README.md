@@ -118,6 +118,10 @@ Toegepast met `tofu apply`: `enable_dns_hostnames` ging van `false` naar `true`,
 <img src="images/vpc-dns-fix-tofu-plan.png" alt="tofu plan: aws_vpc.saxit_vpc enable_dns_hostnames false -> true" width="800">
 <img src="images/vpc-dns-fix-tofu-apply.png" alt="tofu apply: Modifications complete after 2s" width="800">
 
+**Malwarescan.** Runtime Monitoring heeft zijn eigen agent nodig (duurt na de VPC-fix nog even), maar de eigenlijke malwarescan uit de opdracht kan los daarvan: GuardDuty → Malware Protection → on-demand scan per EC2-instance, rechtstreeks op `web01`/`web02`/`app01`/`app02`:
+
+<img src="images/guardduty-malware-scans-running.png" alt="GuardDuty on-demand malware scans gestart voor web01, web02, app01, app02" width="900">
+
 ## 6.5 Log-analyse met Python en IsolationForest
 
 ### Wat het script doet
