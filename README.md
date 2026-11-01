@@ -19,7 +19,10 @@ Mijn uitwerking van de Cloud Security-module. Deze applicatie draait in een 3-ti
 
 De infrastructuurcode gebruikt [OpenTofu](https://opentofu.org/) in plaats van HashiCorp Terraform: dezelfde taal en providers, maar open source gebleven. Zie [week 1](week-1/README.md) voor waarom. Installatiehandleiding (van nul af aan opzetten): [`setup/README.md`](setup/README.md).
 
-Ik werk hierbij met AI-assistentie: Mistral Vibe (GLM 5.3) en Claude (Sonnet 5), via IDE-integraties. De opzet, keuzes en het testen zijn van mij, maar een deel van het typewerk en het debuggen doe ik samen met deze tools.
+Ik werk hierbij met AI-assistentie, via IDE-integraties. De opzet, keuzes en het testen zijn van mij, maar een deel van het typewerk en het debuggen doe ik samen met deze tools.
+
+- Anthropic. (2026). *Claude (Sonnet 5)* [Large language model]. [https://claude.ai](https://claude.ai)
+- Mistral AI. (2026). *Mistral Vibe (GLM 5.3)* [Large language model]. [https://mistral.ai](https://mistral.ai)
 
 De repository staat ook gespiegeld op [CodeTrunk](https://repos.codetrunk.eu/Stensel8/Cloud-Security), een Europese Git-host met IPv6-ondersteuning: voor redundantie en omdat ik niet alles alleen op GitHub (VS) wil hebben staan.
 
