@@ -12,7 +12,7 @@ aws kinesis create-stream --stream-name saxit-docker-logs --shard-count 1 --prof
 
 <img src="images/kinesis-create-stream.png" alt="aws kinesis create-stream --stream-name saxit-docker-logs" width="800">
 
-**Afwijking van het plan (eerlijk):** de officiële **Amazon Kinesis Agent** installeren was het plan, maar die is Amazon Linux/RHEL-gericht (yum/RPM) — geen apt-pakket voor Ubuntu, en zelf bouwen kost tijd die er niet was. In plaats daarvan: `docker logs` ophalen en per regel een `kinesis put-record` via de AWS CLI, met credentials uit de instance's eigen `LabInstanceProfile` (IMDS). Zelfde doel, alleen zonder de permanente achtergrond-daemon.
+**Afwijking van het plan (eerlijk):** de officiële **Amazon Kinesis Agent** installeren was het plan, maar die is Amazon Linux/RHEL-gericht (yum/RPM). Geen apt-pakket voor Ubuntu, en zelf bouwen kost tijd die er niet was. In plaats daarvan: `docker logs` ophalen en per regel een `kinesis put-record` via de AWS CLI, met credentials uit de instance's eigen `LabInstanceProfile` (IMDS). Zelfde doel, alleen zonder de permanente achtergrond-daemon.
 
 ```bash
 # Op de instance zelf (AWS CLI v2, IMDS-credentials via LabRole)
@@ -44,11 +44,11 @@ aws kinesis get-records --shard-iterator "$ITER" --profile 142585515293 --region
 
 <img src="images/kinesis-get-records-polling.png" alt="get-shard-iterator en get-records, leeg resultaat maar MillisBehindLatest > 0" width="800">
 
-Eerste poging kwam leeg terug (`"Records": []`), maar met `"MillisBehindLatest": 748000` — data zit er wel, alleen verderop in de shard. Normaal Kinesis-gedrag: met `NextShardIterator` een paar keer opnieuw pollen brengt je verder. CloudWatch bevestigt dezelfde activiteit:
+Eerste poging kwam leeg terug (`"Records": []`), maar met `"MillisBehindLatest": 748000`. Data zit er wel, alleen verderop in de shard. Normaal Kinesis-gedrag: met `NextShardIterator` een paar keer opnieuw pollen brengt je verder. CloudWatch bevestigt dezelfde activiteit:
 
 <img src="images/kinesis-cloudwatch-stream-metrics.png" alt="CloudWatch Stream metrics voor de Kinesis-stream" width="800">
 
-**Via de Data Viewer in de console** ging het eerst mis, toen goed. Starting position "Latest" gaf niks terug — logisch, "Latest" leest alleen nieuwe records ná het moment van de aanvraag, en de 5 records waren al binnen:
+**Via de Data Viewer in de console** ging het eerst mis, toen goed. Starting position "Latest" gaf niks terug. Logisch, "Latest" leest alleen nieuwe records ná het moment van de aanvraag, en de 5 records waren al binnen:
 
 <img src="images/kinesis-data-viewer-leeg-latest.png" alt="Data Viewer, geen records gevonden met starting position Latest" width="800">
 
@@ -56,7 +56,7 @@ Met starting position "Trim horizon" (vanaf het begin van de shard) staan alle 5
 
 <img src="images/kinesis-data-viewer-5-records.png" alt="Data Viewer, 5 records zichtbaar vanaf Trim horizon" width="800">
 
-Voor SaxIT is Kinesis de centrale "voordeur" voor logdata uit alle tiers. Vanuit de stream kan Firehose of een Lambda de logs doorzetten naar S3 (lange-termijn, audits) of OpenSearch (doorzoekbaar, dashboards/alerting). Grootste voordeel: ook als een server wordt overgenomen, staan de logs van ervoor al ergens anders — de aanvaller kan de geschiedenis niet wissen door lokaal te wissen. Voor productie zou ik alsnog een echte achtergrond-daemon willen (de officiële agent op Amazon Linux, of Fluent Bit met Kinesis-output, dat wél een Ubuntu-pakket heeft) in plaats van dit handmatige commando.
+Voor SaxIT is Kinesis de centrale "voordeur" voor logdata uit alle tiers. Vanuit de stream kan Firehose of een Lambda de logs doorzetten naar S3 (lange-termijn, audits) of OpenSearch (doorzoekbaar, dashboards/alerting). Grootste voordeel: ook als een server wordt overgenomen, staan de logs van ervoor al ergens anders. De aanvaller kan de geschiedenis niet wissen door lokaal te wissen. Voor productie zou ik alsnog een echte achtergrond-daemon willen (de officiële agent op Amazon Linux, of Fluent Bit met Kinesis-output, dat wél een Ubuntu-pakket heeft) in plaats van dit handmatige commando.
 
 ## 6.2 Advies: AWS-detectiediensten voor SaxIT
 
@@ -82,7 +82,7 @@ Security Hub verzamelt meldingen uit GuardDuty, Inspector, Macie e.d. op één d
 
 Stappen: Security Hub activeren, standaarden aanvinken, GuardDuty (met Malware Protection) aanzetten zodat bevindingen doorstromen, dan per EC2 een scan afdwingen of afwachten.
 
-Advies: Security Hub niet als los dashboard maar als centraal startpunt gebruiken — alerting op nieuwe High/Critical-bevindingen (EventBridge naar mail/Slack, zie 4.4), security-score als terugkerend agendapunt.
+Advies: Security Hub niet als los dashboard maar als centraal startpunt gebruiken, met alerting op nieuwe High/Critical-bevindingen (EventBridge naar mail/Slack, zie 4.4) en security-score als terugkerend agendapunt.
 
 Bronnen: [AWS Security Hub](https://aws.amazon.com/security-hub/), [GuardDuty Malware Protection for EC2](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html).
 
@@ -161,11 +161,11 @@ n219076184117.netvigator.com          23              12
 
 ![Anomale bronnen volgens IsolationForest](images/anomalous_sources.png)
 
-Eerste grafiek: duidelijke piek op 10 januari, 16:00 uur (90 pogingen, tegen normaal 0-15/uur). Tweede grafiek wijst de boosdoener aan: `150.183.249.110`, 80 pogingen totaal, 46 in één minuut — geen mens die zijn wachtwoord verkeerd typt, een geautomatiseerde brute-force. Drie andere bronnen (`207.243.167.114`, `n219076184117.netvigator.com`, `60.30.224.116`) markeert het model ook als afwijkend: minder pogingen, maar duidelijk meer dan de rest (typisch 1-10) — mogelijk tragere scans.
+Eerste grafiek: duidelijke piek op 10 januari, 16:00 uur (90 pogingen, tegen normaal 0-15/uur). Tweede grafiek wijst de boosdoener aan: `150.183.249.110`, 80 pogingen totaal, 46 in één minuut. Geen mens die zijn wachtwoord verkeerd typt, een geautomatiseerde brute-force. Drie andere bronnen (`207.243.167.114`, `n219076184117.netvigator.com`, `60.30.224.116`) markeert het model ook als afwijkend: minder pogingen, maar duidelijk meer dan de rest (typisch 1-10), mogelijk tragere scans.
 
 ### Waarom IsolationForest
 
-IsolationForest vindt afwijkende punten zonder vooraf te weten hoe een aanval eruitziet of gelabelde voorbeelden te hebben. Idee: een afwijkend punt is makkelijker te isoleren dan een normaal punt — het algoritme bouwt willekeurige beslissingsbomen, en een uitschieter (80 pogingen, 46/minuut, tegen een mediaan van een paar) heeft maar een paar splitsingen nodig om alleen te staan. Hoe minder splitsingen, hoe hoger de anomaliescore. Precies wat hier nodig is: ik weet niet vooraf wat een brute-force kenmerkt, maar wel dat het statistisch afwijkt — zonder zelf een harde drempel te hoeven verzinnen.
+IsolationForest vindt afwijkende punten zonder vooraf te weten hoe een aanval eruitziet of gelabelde voorbeelden te hebben. Idee: een afwijkend punt is makkelijker te isoleren dan een normaal punt. Het algoritme bouwt willekeurige beslissingsbomen, en een uitschieter (80 pogingen, 46/minuut, tegen een mediaan van een paar) heeft maar een paar splitsingen nodig om alleen te staan. Hoe minder splitsingen, hoe hoger de anomaliescore. Precies wat hier nodig is: ik weet niet vooraf wat een brute-force kenmerkt, maar wel dat het statistisch afwijkt, zonder zelf een harde drempel te hoeven verzinnen.
 
 ### Prompting
 

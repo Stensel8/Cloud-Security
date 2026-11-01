@@ -47,16 +47,16 @@ Bronnen: [NCSC: incident respons, waar begin ik](https://www.ncsc.nl/wat-kun-je-
 
 ## 5.2 Application security: wat het inhoudt en advies voor SaxIT
 
-Application security beveiligt de applicatie zelf — code, dependencies, hoe 'ie met gebruikers/systemen praat — als aanvulling op de infra (week 1/3). Een dichtgetimmerd netwerk helpt niet tegen SQL-injectie of een kapotte autorisatiecheck: die komt gewoon binnen via de voordeur die toch open moet staan.
+Application security beveiligt de applicatie zelf: code, dependencies, hoe 'ie met gebruikers/systemen praat, als aanvulling op de infra (week 1/3). Een dichtgetimmerd netwerk helpt niet tegen SQL-injectie of een kapotte autorisatiecheck: die komt gewoon binnen via de voordeur die toch open moet staan.
 
 Voor de React/Spring-app concreet:
 
-- **OWASP Top 10**: vooral injection (SQL via JPA/Hibernate), broken access control (klant A bij CMDB-data van klant B?), kwetsbare dependencies (npm, Maven).
-- **Input-validatie in de backend**, niet alleen in React — een aanvaller praat direct met de Spring-API.
-- **Dependency-scanning in de pipeline**: `npm audit`/Dependabot voor de frontend, OWASP dependency-check voor Maven, naast wat [`build.yml`](../.github/workflows/build.yml) al doet.
-- **SAST/DAST**: SAST (Snyk Code/CodeQL) op de broncode, DAST (OWASP ZAP) tegen de draaiende omgeving ná deploy.
-- **Secrets nooit in code of logs** — zie week 2.
-- **Threat modeling vooraf** (5.3), niet achteraf.
+- OWASP Top 10: vooral injection (SQL via JPA/Hibernate), broken access control (klant A bij CMDB-data van klant B?), kwetsbare dependencies (npm, Maven).
+- Input-validatie in de backend, niet alleen in React. Een aanvaller praat direct met de Spring-API.
+- Dependency-scanning in de pipeline: `npm audit`/Dependabot voor de frontend, OWASP dependency-check voor Maven, naast wat [`build.yml`](../.github/workflows/build.yml) al doet.
+- SAST/DAST: SAST (Snyk Code/CodeQL) op de broncode, DAST (OWASP ZAP) tegen de draaiende omgeving ná deploy.
+- Secrets nooit in code of logs, zie week 2.
+- Threat modeling vooraf (5.3), niet achteraf.
 
 Bronnen: [OWASP Top 10](https://owasp.org/www-project-top-ten/), [OWASP Application Security Verification Standard](https://owasp.org/www-project-application-security-verification-standard/), [OWASP Dependency-Check](https://owasp.org/www-project-dependency-check/), [OWASP ZAP](https://www.zaproxy.org/).
 
@@ -73,8 +73,8 @@ STRIDE kijkt per onderdeel van het systeem naar zes soorten dreigingen. Toegepas
 | **D**enial of service | Load balancer overspoeld met requests, database vol rommeldata | Meerdere instances per tier, CloudWatch-alarmen (6.2), eventueel WAF/Shield |
 | **E**levation of privilege | Gecompromitteerde `web01` probeert bij de database te komen | Least privilege per tier (SG's week 3, IAM per rol week 2) |
 
-**Wat nog openstaat:** al het verkeer loopt nog over HTTP, niet HTTPS — een reëel Tampering/Information-disclosure-risico. Vervolgstap: TLS op beide load balancers.
+**Wat nog openstaat:** al het verkeer loopt nog over HTTP, niet HTTPS. Een reëel Tampering/Information-disclosure-risico. Vervolgstap: TLS op beide load balancers.
 
-STRIDE dwingt me systematisch per onderdeel te kijken, niet alleen naar wat toevallig opvalt — zo vond ik de open RDS-SG en het ontbreken van TLS vóórdat het een incident werd. Voor SaxIT (security als speerpunt) is dat de voorwaarde om zwakke plekken vóór livegang te vinden, niet erna.
+STRIDE dwingt me systematisch per onderdeel te kijken, niet alleen naar wat toevallig opvalt. Zo vond ik de open RDS-SG en het ontbreken van TLS vóórdat het een incident werd. Voor SaxIT (security als speerpunt) is dat de voorwaarde om zwakke plekken vóór livegang te vinden, niet erna.
 
 Bronnen: [OWASP Threat Modeling](https://owasp.org/www-community/Threat_Modeling), [Microsoft STRIDE](https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats).

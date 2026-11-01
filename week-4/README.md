@@ -24,7 +24,7 @@ Maatregelen per categorie:
 
 ## 4.2 Drie buckets, één per classificatie
 
-**Waarom een bash-script en geen OpenTofu.** Stond eerst als `aws_s3_bucket`-resources in `opentofu/data-protection.tf`. Die resource leest ook altijd de object lock-configuratie uit, en die leesactie is in de Learner Lab geblokkeerd door een org-brede Service Control Policy — niet op te lossen met IAM-rechten op mijn eigen rol. Bucket wordt wel aangemaakt, maar OpenTofu markeert 'm "tainted" en elke volgende `apply` loopt tegen dezelfde fout. Resultaat: oneindige lus (zie [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab) voor hoe het via OpenTofu wél lukt).
+**Waarom een bash-script en geen OpenTofu.** Stond eerst als `aws_s3_bucket`-resources in `opentofu/data-protection.tf`. Die resource leest ook altijd de object lock-configuratie uit, en die leesactie is in de Learner Lab geblokkeerd door een org-brede Service Control Policy. Niet op te lossen met IAM-rechten op mijn eigen rol. Bucket wordt wel aangemaakt, maar OpenTofu markeert 'm "tainted" en elke volgende `apply` loopt tegen dezelfde fout. Resultaat: oneindige lus (zie [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab) voor hoe het via OpenTofu wél lukt).
 
 `aws s3api create-bucket` doet die leesactie niet, dus staat dit nu in [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh), idempotent (opnieuw draaien hergebruikt bestaande resources). Alleen de BYOK KMS-sleutel (4.3, geen last van dit probleem) blijft in [`opentofu/data-protection.tf`](../opentofu/data-protection.tf), met een vaste alias (`alias/saxit-confidential-byok`) zodat het script 'm kan opzoeken. Draaien:
 
@@ -36,7 +36,7 @@ Het script zet per classificatiebucket (`saxit-data-public-*`, `saxit-data-inter
 
 - **Standaardencryptie verplicht**: SSE-S3 voor public/internal, SSE-KMS met de sleutel uit 4.3 voor confidential.
 - **Bucket policy** die alleen HTTPS toestaat, uploads zonder juiste `x-amz-server-side-encryption`-header weigert, en uploads zonder de bij déze bucket horende `classification`-tag weigert. Zo belandt een confidential bestand nooit per ongeluk als "public" getagd in de verkeerde bucket.
-- **Block Public Access volledig aan** — "public" betekent hier intern leesbaar voor de hele organisatie, geen publiek-op-internet bucket.
+- **Block Public Access volledig aan**: "public" betekent hier intern leesbaar voor de hele organisatie, geen publiek-op-internet bucket.
 
 ```bash
 {"Sid":"DenyWrongClassificationTag","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:RequestObjectTag/classification":"$classification"}}}
@@ -52,7 +52,7 @@ aws s3api put-object --bucket saxit-data-confidential-<suffix> --key confidentia
   --body demo-files/confidential-customer-data.txt --tagging "classification=confidential" --server-side-encryption aws:kms --ssekms-key-id <kms-key-id>
 ```
 
-Een gebruiker beperken tot bepaalde buckets gaat via een IAM-policy met specifieke bucket-ARN's als `Resource` i.p.v. `*` — zelfde principe als de RDS-rol in 2.1. Kan ik hier niet aantonen (zelfde IAM-beperking), maar het idee is identiek.
+Een gebruiker beperken tot bepaalde buckets gaat via een IAM-policy met specifieke bucket-ARN's als `Resource` i.p.v. `*`, zelfde principe als de RDS-rol in 2.1. Kan ik hier niet aantonen (zelfde IAM-beperking), maar het idee is identiek.
 
 Script gedraaid:
 
@@ -116,7 +116,7 @@ Encryptie-instelling van de geheime bucket wijst naar deze sleutel:
 Ook via [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh) (zie 4.2):
 
 - **CloudTrail-trail** (`saxit-confidential-bucket-trail`) die data events (object-niveau) logt voor de geheime bucket, naar een aparte logs-bucket.
-- **EventBridge-rule** (`saxit-confidential-object-read`) die matcht op `GetObject` en doorstuurt naar een **SNS-topic** met e-mail-abonnement — een mail bij elke download.
+- **EventBridge-rule** (`saxit-confidential-object-read`) die matcht op `GetObject` en doorstuurt naar een **SNS-topic** met e-mail-abonnement: een mail bij elke download.
 - **CloudWatch-dashboard** (`saxit-s3-classification`) met objectaantal en bucketgrootte per classificatie.
 
 ```json
@@ -137,11 +137,11 @@ Demobestand geüpload naar de geheime bucket en weer gedownload, om de keten te 
 <img src="images/upload-confidential-succeeded.png" alt="Upload succeeded: confidential-customer-data.txt" width="700">
 <img src="images/download-confidential-object.png" alt="Download van confidential-customer-data.txt, 578 B, Done" width="700">
 
-De alert-mail kwam binnen vóór het CloudTrail-logbestand zelf beschikbaar was (S3-levering heeft meer vertraging dan EventBridge) — de mail bevat het volledige CloudTrail-event, dus dat is bewijs voor beide:
+De alert-mail kwam binnen vóór het CloudTrail-logbestand zelf beschikbaar was (S3-levering heeft meer vertraging dan EventBridge). De mail bevat het volledige CloudTrail-event, dus dat is bewijs voor beide:
 
 <img src="images/cloudtrail-alert-mail.png" alt="Alert-mail met volledige CloudTrail-event: eventName GetObject, bucketName saxit-data-confidential-550600, key confidential-customer-data.txt" width="900">
 
-**CloudWatch-dashboard: "No data available".** Eerlijk: is me vandaag niet gelukt om hier data in te krijgen. S3's Storage Metrics worden maar **1x per dag** gepubliceerd, en de buckets zijn vandaag pas aangemaakt — eerste datapunt zou morgen moeten verschijnen. Widgets/metrics/bucketnamen staan in elk geval goed.
+**CloudWatch-dashboard: "No data available".** Eerlijk: is me vandaag niet gelukt om hier data in te krijgen. S3's Storage Metrics worden maar **1x per dag** gepubliceerd, en de buckets zijn vandaag pas aangemaakt. Eerste datapunt zou morgen moeten verschijnen. Widgets/metrics/bucketnamen staan in elk geval goed.
 
 <img src="images/cloudwatch-dashboard-no-data.png" alt="saxit-s3-classification dashboard: No data available (S3 Storage Metrics worden 1x per dag gepubliceerd)" width="900">
 
@@ -151,13 +151,13 @@ De alert-mail kwam binnen vóór het CloudTrail-logbestand zelf beschikbaar was 
 
 ## 4.6 Advies: AVG en encryptie op de S3-buckets
 
-**Relatie met de AVG.** Artikel 32 AVG verplicht "passende technische en organisatorische maatregelen" bij persoonsgegevens (SaxIT's klantgegevens, zie 4.1), en noemt encryptie expliciet. Dataclassificatie (4.1) is de eerste stap, encryptie at rest + eigen sleutel (4.2/4.3) de technische invulling; logging/alerting (4.4) ondersteunt zowel de meldplicht datalekken (binnen 72 uur weten wát er lekte, zie 5.1/7.3) als accountability — wie was wanneer bij welke data.
+**Relatie met de AVG.** Artikel 32 AVG verplicht "passende technische en organisatorische maatregelen" bij persoonsgegevens (SaxIT's klantgegevens, zie 4.1), en noemt encryptie expliciet. Dataclassificatie (4.1) is de eerste stap, encryptie at rest + eigen sleutel (4.2/4.3) de technische invulling. Logging/alerting (4.4) ondersteunt zowel de meldplicht datalekken (binnen 72 uur weten wát er lekte, zie 5.1/7.3) als accountability: wie was wanneer bij welke data.
 
 **Encryptievormen op S3, van zwak naar sterk:**
 
 - **SSE-S3** (`AES256`): AWS beheert de sleutel volledig. Eenvoudigst, geen controle/zicht op de sleutel.
 - **SSE-KMS**: sleutel staat in KMS met eigen toegangsbeleid en CloudTrail-audit van elk gebruik. SaxIT kan nu afdwingen én loggen wie mag ontsleutelen.
-- **SSE-KMS met eigen (BYOK) keymateriaal** (4.3): zoals SSE-KMS, maar SaxIT genereerde het materiaal zelf en kan het intrekken — data wordt dan onherstelbaar onleesbaar, ook voor AWS ("crypto-shredding").
+- **SSE-KMS met eigen (BYOK) keymateriaal** (4.3): zoals SSE-KMS, maar SaxIT genereerde het materiaal zelf en kan het intrekken. Data wordt dan onherstelbaar onleesbaar, ook voor AWS ("crypto-shredding").
 - **SSE-C** (niet gebruikt hier): sleutel per request door de klant meegegeven, nog meer controle maar ook meer kans op een menselijke fout (sleutel kwijt = data kwijt).
 
 Voor de geheime bucket is SSE-KMS met eigen keymateriaal de juiste keuze: audit-trail van KMS, plus de garantie dat alleen SaxIT het keymateriaal ooit in bezit had.

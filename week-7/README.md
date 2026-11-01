@@ -12,11 +12,11 @@ Als afsluiting: een frameworkadvies voor SaxIT (7.1), een verdieping op NIST (7.
 | **AVG/GDPR** | Wettelijke verplichting rond persoonsgegevens: rechtmatigheid, meldplicht, rechten van betrokkenen | Verplicht zodra er persoonsgegevens verwerkt worden (zie 7.3) |
 | **SOC 2** (niet in de slides) | Auditrapport van vijf trust service criteria, veelgevraagd door SaaS-klanten in de VS | Vooral voor een SaaS-aanbieder als SaxIT die B2B-klanten moet overtuigen |
 
-**Advies:** **NIST CSF** als overkoepelend kader, **CIS Controls/Benchmarks** voor de technische invulling. NIST geeft structuur die ook richting niet-technisch management werkt, CIS maakt het toetsbaar op de infra uit dit vak. ISO 27001 pas zodra klanten certificering eisen — zwaarder dan nodig in deze fase. **SOC 2** op de roadmap zodra SaxIT internationale/Amerikaanse SaaS-klanten wil overtuigen (daar vaak een harde eis, ISO 27001 is in Europa gangbaarder).
+**Advies:** **NIST CSF** als overkoepelend kader, **CIS Controls/Benchmarks** voor de technische invulling. NIST geeft structuur die ook richting niet-technisch management werkt, CIS maakt het toetsbaar op de infra uit dit vak. ISO 27001 pas zodra klanten certificering eisen, zwaarder dan nodig in deze fase. **SOC 2** op de roadmap zodra SaxIT internationale/Amerikaanse SaaS-klanten wil overtuigen (daar vaak een harde eis, ISO 27001 is in Europa gangbaarder).
 
 **Stappenplan:**
 
-1. **Maand 1:** NIST CSF current profile opstellen (zie 7.2) — weken 1-6 zijn daar al grotendeels bewijs voor.
+1. **Maand 1:** NIST CSF current profile opstellen (zie 7.2). Weken 1-6 zijn daar al grotendeels bewijs voor.
 2. **Maand 2:** prioriteiten op de grootste gaps (geen centrale logging vóór week 6, nog geen TLS), target profile vaststellen.
 3. **Maand 3-4:** CIS Benchmarks toepassen op productie (Linux/container-hardening) als Protect-invulling.
 4. **Maand 5:** Detect/Respond-processen vastleggen (incident response plan 5.1 als startpunt), testen met tabletop-oefening.
@@ -40,18 +40,18 @@ Bronnen: [NIST Cybersecurity Framework 2.0: de vijf functies](https://www.nist.g
 
 ## 7.3 AVG: rechten van klanten praktisch inrichten
 
-SaxIT bewaart klantgegevens in het CMDB en moet dus kunnen voldoen aan de AVG-rechten van betrokkenen: inzage, rectificatie, verwijdering, beperking, dataportabiliteit, bezwaar — binnen een maand (met mogelijke verlenging).
+SaxIT bewaart klantgegevens in het CMDB en moet dus kunnen voldoen aan de AVG-rechten van betrokkenen: inzage, rectificatie, verwijdering, beperking, dataportabiliteit, bezwaar. Dat moet binnen een maand, met mogelijke verlenging.
 
 Praktisch advies:
 
-- **Eén centraal verzoekenregister** met automatische termijnbewaking, zodat niets blijft liggen.
-- **Dataclassificatie als basis** (4.1): persoonsgegevens zijn al getagd ("Intern"/"Geheim"), dus snel te vinden welke objecten bij welke klant horen.
-- **Een gegevensregister** van waar persoonsgegevens precies staan (RDS + S3) — zonder overzicht is een verwijderverzoek niet volledig uit te voeren.
-- **Verwijdering end-to-end testen, inclusief back-ups**: een record dat nog drie maanden in een back-up staat is voor de AVG niet echt verwijderd.
-- **Logging van wie een verzoek afhandelde** (CloudTrail/applicatielogging, 4.4/6.1) — accountability is zelf ook een AVG-verplichting.
-- Een datalek van persoonsgegevens (rij 3 in 5.1's incidententabel) heeft een eigen meldplicht aan de AP binnen 72 uur — hoort als apart stappenplan in het incident response plan.
+- Eén centraal verzoekenregister met automatische termijnbewaking, zodat niets blijft liggen.
+- Dataclassificatie als basis (4.1): persoonsgegevens zijn al getagd ("Intern"/"Geheim"), dus snel te vinden welke objecten bij welke klant horen.
+- Een gegevensregister van waar persoonsgegevens precies staan, RDS en S3. Zonder dat overzicht is een verwijderverzoek niet volledig uit te voeren.
+- Verwijdering end-to-end testen, inclusief back-ups: een record dat nog drie maanden in een back-up staat is voor de AVG niet echt verwijderd.
+- Logging van wie een verzoek afhandelde (CloudTrail/applicatielogging, 4.4/6.1), want accountability is zelf ook een AVG-verplichting.
+- Een datalek van persoonsgegevens (rij 3 in 5.1's incidententabel) heeft een eigen meldplicht aan de AP binnen 72 uur. Hoort als apart stappenplan in het incident response plan.
 
-Bronnen: [Rechten van betrokkenen (Autoriteit Persoonsgegevens)](https://www.autoriteitpersoonsgegevens.nl/themas/basis-avg/rechten-van-betrokkenen), [Data protection (Europese Commissie)](https://commission.europa.eu/law/law-topic/data-protection/data-protection-explained_en).
+Bronnen: [Rechten van betrokkenen (Autoriteit Persoonsgegevens)](https://www.autoriteitpersoonsgegevens.nl/onderwerpen/avg-nieuwe-europese-privacywetgeving/rechten-van-betrokkenen), [Data protection (Europese Commissie)](https://commission.europa.eu/law/law-topic/data-protection/data-protection-explained_en).
 
 ## 7.4 AWS Academy Cloud Security Foundations: course assessment
 

@@ -9,7 +9,7 @@ In de Learner Lab heb ik geen rechten om IAM-rollen/policies aan te maken (`iam:
 Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
 1. **IAM-rol en policy** ([`opentofu/iam.tf`](../opentofu/iam.tf)): `app-tier-rds-iam-role`, met een policy die alleen `rds-db:connect` toestaat, afgebakend tot precies `app_iam_user` op deze ene RDS-instance. Faalt met `AccessDenied` bij `tofu apply`.
-2. **Instance profile**: die rol zou ik koppelen via `iam_instance_profile`. In de praktijk draaien `app01`/`app02` nu met de voorgedefinieerde `LabInstanceProfile` — dat mag een student wel koppelen. Of de policy achter `LabRole` `rds-db:connect` toestaat kon ik niet checken: het policy-document zelf mag ik niet inzien.
+2. **Instance profile**: die rol zou ik koppelen via `iam_instance_profile`. In de praktijk draaien `app01`/`app02` nu met de voorgedefinieerde `LabInstanceProfile`, dat mag een student wel koppelen. Of de policy achter `LabRole` `rds-db:connect` toestaat kon ik niet checken: het policy-document zelf mag ik niet inzien.
 3. **IAM-authenticatie aan op de RDS-instance**: `iam_database_authentication_enabled = true` in [`opentofu/rds-bootstrap/rds.tf`](../opentofu/rds-bootstrap/rds.tf).
 4. **Databasegebruiker die IAM-tokens accepteert**, via SQL (geen OpenTofu-resource hiervoor binnen RDS):
    ```sql
@@ -20,7 +20,7 @@ Zo zou ik app01/app02 zonder wachtwoord bij de database laten komen:
 
 Simpeler alternatief: wachtwoord laten staan maar uit OpenTofu/user-data halen, in **AWS Secrets Manager** met rotatie, app haalt het op via dezelfde instance profile. Minder native, wel sneller te bouwen.
 
-De rode foutmelding bij `tofu apply` — precies wat gevraagd wordt:
+De rode foutmelding bij `tofu apply`, precies wat gevraagd wordt:
 
 <img src="images/iam-createrole-accessdenied.png" alt="tofu apply: Error creating IAM Role (app-tier-rds-iam-role), AccessDenied op iam:CreateRole voor de student-rol" width="800">
 
@@ -36,12 +36,12 @@ Dit moet ik zelf doen in de AWS Academy-leeromgeving; dat kan ik niet namens jou
 
 ## 2.3 Advies: least privilege en Entra ID-federatie
 
-**Least privilege.** Elke identiteit krijgt precies genoeg rechten voor zijn taak, niet meer — geldt voor IAM net zo goed als voor de security groups uit week 1/3. Voor SaxIT concreet:
+**Least privilege.** Elke identiteit krijgt precies genoeg rechten voor zijn taak, niet meer. Geldt voor IAM net zo goed als voor de security groups uit week 1/3. Voor SaxIT concreet:
 
 - Eigen smalle policy per rol i.p.v. één brede "PowerUser"-rol. Hier: `app-tier-rds-iam-role` mag alleen `rds-db:connect`, op één databasegebruiker.
 - Rollen voor VM's/services i.p.v. lange-termijn access keys die in code terecht kunnen komen.
 - Rechten die "om het werkend te krijgen" breed stonden (zoals nu het wachtwoord in `user_data`) achteraf versmallen, niet voor altijd zo laten staan.
-- Voor het CMDB-systeem: elke klant mag alleen bij zijn eigen tenant-data — least privilege op applicatieniveau.
+- Voor het CMDB-systeem: elke klant mag alleen bij zijn eigen tenant-data. Dat is least privilege op applicatieniveau.
 
 **Entra ID-federatie.** SaxIT gebruikt al Microsoft Entra ID. In plaats van losse IAM-gebruikers met eigen wachtwoorden zou ik Entra ID koppelen via **IAM Identity Center** (SAML 2.0) of directe OIDC/SAML-federatie naar IAM-rollen: een medewerker logt in met zijn Entra ID-account en krijgt via een gekoppelde groep tijdelijke AWS-credentials. Voordeel: één plek voor onboarding/offboarding (AWS-toegang vervalt automatisch met het Entra ID-account), MFA/conditional access werkt meteen door, geen losse IAM-wachtwoorden om bij te houden.
 
