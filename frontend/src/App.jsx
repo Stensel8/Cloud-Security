@@ -4,7 +4,7 @@ import CreateProductForm from './components/CreateProductForm'
 import NavBar from "./components/NavBar";
 import ProductList from "./components/ProductList";
 import Products from "./components/Products";
-import { ProductListProvider } from "./context/ProductContext";
+import { ProductListProvider } from "./context/ProductProvider";
 import ProductDetail from "./components/ProductDetail";
 import UpdateProductForm from './components/UpdateProductForm';
 import NotFound from './components/NotFound';
