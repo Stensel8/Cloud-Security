@@ -36,7 +36,10 @@ jobs:
         with:
           tofu_version: "1.13.2"
 
-      - run: tofu init
+      # bucket komt uit een secret, niet uit backend.hcl (dat is lokaal en gitignored, zie main.tf) - zonder
+      # -backend-config hangt deze stap in CI op een input-prompt die nooit beantwoord wordt (geen tty).
+      - name: OpenTofu init
+        run: tofu init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
 
       - name: OpenTofu plan
         run: tofu plan -input=false

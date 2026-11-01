@@ -95,19 +95,29 @@ jobs:
       - uses: actions/checkout@...
       - uses: aws-actions/configure-aws-credentials@...   # Learner Lab: tijdelijke sessie-credentials als secrets
       - uses: opentofu/setup-opentofu@...
-      - run: tofu init
+      - run: tofu init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
       - run: tofu plan -input=false
       - run: tofu apply -input=false -auto-approve
         if: github.ref == 'refs/heads/uitwerkingen'
 ```
 
+**Een echte bug, gevonden tijdens de eerste live run.** De `bucket` voor de S3-backend staat expres niet in `main.tf` zelf (dat zou mijn account-ID in de publieke repo zetten, zie het commentaar daar) en komt lokaal uit het gitignored `backend.hcl`. De pipeline had die waarde dus helemaal niet, en zonder `-backend-config`/`-input=false` op de `init`-stap vraagt OpenTofu interactief om de bucketnaam - een prompt die in CI (geen tty) nooit beantwoord wordt. De job bleef daardoor gewoon oneindig hangen op "Run tofu init" in plaats van een duidelijke fout te geven:
+
+<img src="images/pipeline-tofu-init-hangt-op-bucket-prompt.png" alt="GitHub Actions-log: Run tofu init blijft hangen op 'Initializing the backend... bucket: The name of the S3 bucket'" width="900">
+
+Fix: de bucketnaam als extra secret (`TF_STATE_BUCKET`) meegeven aan `-backend-config`, en `-input=false` toevoegen aan `tofu init` zodat een ontbrekende waarde voortaan een duidelijke fout geeft in plaats van een stille hang.
+
 Een belangrijke beperking van een AWS Academy Learner Lab: de credentials zijn tijdelijk en verlopen na een paar uur. Dat betekent dat `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` en `AWS_SESSION_TOKEN` in de GitHub secrets ververst moeten worden telkens als ik een nieuwe labsessie start. In een echte productieomgeving zou dit met rollen en kortlevende, automatisch ververste credentials lopen (zie ook mijn advies in 3.4 en in week 2.3).
 
-De drie secrets staan inmiddels in de repository (Settings → Secrets and variables → Actions). GitHub laat de waarde van een secret nooit meer zien nadat je hem hebt opgeslagen, alleen de naam en wanneer hij voor het laatst is bijgewerkt — dus deze screenshot verraadt niks, alleen dát ze er zijn:
+De vier secrets staan inmiddels in de repository (Settings → Secrets and variables → Actions). GitHub laat de waarde van een secret normaal nooit meer zien nadat je hem hebt opgeslagen, alleen de naam en wanneer hij voor het laatst is bijgewerkt:
 
-<img src="images/github-actions-secrets-aangemaakt.png" alt="GitHub Actions secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY en AWS_SESSION_TOKEN aangemaakt" width="720">
+<img src="images/github-actions-secrets-met-tf-state-bucket.png" alt="GitHub Actions secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN en TF_STATE_BUCKET aangemaakt" width="720">
 
-**Nog te doen (bewijs):** een commit die een kleine wijziging in `opentofu/main.tf` maakt, een screenshot van de geslaagde pipeline-run, en een `tofu plan` op een pull request die laat zien dat er niet automatisch wordt toegepast.
+Voor `TF_STATE_BUCKET` laat ik hieronder, bewust en eenmalig, ook het invoermoment zien (vóór het opslaan, dus mét de waarde). Normaal zou ik dat niet doen, maar dit is geen gevoelige waarde zoals een wachtwoord of toegangssleutel - gewoon een bucketnaam - en zo kan de docent controleren dat ik hier echt de juiste waarde heb ingevuld, in plaats van op mijn woord te moeten vertrouwen:
+
+<img src="images/tf-state-bucket-secret-toevoegen.png" alt="New repository secret-formulier: naam TF_STATE_BUCKET, waarde 550600-cloudsec-tfstate-142585515293-us-east-1-an" width="800">
+
+**Nog te doen (bewijs):** nu de fix in de pipeline zit, een screenshot van een geslaagde run op `uitwerkingen`, en van een plan-only run op een pull request die laat zien dat er niet automatisch wordt toegepast.
 
 ## 3.4 Advies: infrastructure protection voor SaxIT
 

@@ -211,4 +211,4 @@ En ter controle in de AWS-console dat dit ook echt de juiste IP's zijn: alle vie
 
 <img src="images/app01-instance-summary-geen-public-ip.png" alt="Instance summary van app01: Private IPv4 10.0.3.16, Public IPv4 address leeg" width="900">
 
-Bronnen: [AWS: wat is een bastion host](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/bastion-hosts.html), [SSH ProxyJump (OpenSSH)](https://www.ssh.com/academy/ssh/proxyjump).
+Bronnen: [AWS: wat is een bastion host](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/bastion-hosts.html), [ssh_config(5): ProxyJump (OpenSSH manual)](https://man.openbsd.org/ssh_config.5#ProxyJump).
