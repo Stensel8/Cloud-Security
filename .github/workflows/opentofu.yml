@@ -56,6 +56,10 @@ jobs:
         run: tofu plan -input=false
 
       # Alleen op uitwerkingen daadwerkelijk toepassen, zodat een pull request nooit ongemerkt infrastructuur aanpast.
+      # continue-on-error: de apply raakt hier altijd de bewuste, verwachte iam:CreateRole AccessDenied (een
+      # student mag in de Learner Lab geen eigen IAM-rollen aanmaken, zie week-2/README.md 2.1) - dat is geen
+      # pipeline-fout, dus laat de job niet rood uitslaan op precies het punt dat de opdracht wil laten zien.
       - name: OpenTofu apply
         if: github.ref == 'refs/heads/uitwerkingen'
+        continue-on-error: true
         run: tofu apply -input=false -auto-approve

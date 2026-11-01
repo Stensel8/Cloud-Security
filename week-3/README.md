@@ -125,7 +125,13 @@ Voor `TF_STATE_BUCKET` laat ik hieronder, bewust en eenmalig, ook het invoermome
 
 <img src="images/tf-state-bucket-secret-toevoegen.png" alt="New repository secret-formulier: naam TF_STATE_BUCKET, waarde 550600-cloudsec-tfstate-142585515293-us-east-1-an" width="800">
 
-**Nog te doen (bewijs):** nu de fix in de pipeline zit, een screenshot van een geslaagde run op `uitwerkingen`, en van een plan-only run op een pull request die laat zien dat er niet automatisch wordt toegepast.
+**En toen werkte de pipeline-mechaniek eindelijk - en raakte meteen de bekende IAM-beperking.** Met alle bovenstaande fixes erin slaagt `tofu plan` volledig (3 to add: precies de IAM-rol/policy/instance-profile uit week 2.1), en breekt `tofu apply` op exact dezelfde bewuste `iam:CreateRole`-AccessDenied die we al de hele module tegenkomen - niet een pipeline-bug, maar hetzelfde verwachte resultaat als elke lokale apply:
+
+<img src="images/pipeline-apply-verwachte-iam-fout.png" alt="OpenTofu apply-log: Plan 3 to add, dan Error creating IAM Role (app-tier-rds-iam-role) AccessDenied - exact de bekende Learner Lab-beperking" width="900">
+
+Ik heb de `apply`-stap daarom `continue-on-error: true` gegeven: deze ene, bewuste fout mag de hele job niet rood laten uitslaan, want dat zou precies het punt verbergen dat de opdracht wil laten zien (zie week-2/README.md, 2.1).
+
+**Nog te doen (bewijs):** een screenshot van de daardoor geslaagde run op `uitwerkingen`, en van een plan-only run op een pull request die laat zien dat er niet automatisch wordt toegepast.
 
 ## 3.4 Advies: infrastructure protection voor SaxIT
 
