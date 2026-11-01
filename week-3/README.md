@@ -131,7 +131,11 @@ Voor `TF_STATE_BUCKET` laat ik hieronder, bewust en eenmalig, ook het invoermome
 
 Ik heb de `apply`-stap daarom `continue-on-error: true` gegeven: deze ene, bewuste fout mag de hele job niet rood laten uitslaan, want dat zou precies het punt verbergen dat de opdracht wil laten zien (zie week-2/README.md, 2.1).
 
-**Nog te doen (bewijs):** een screenshot van de daardoor geslaagde run op `uitwerkingen`, en van een plan-only run op een pull request die laat zien dat er niet automatisch wordt toegepast.
+En met `continue-on-error` staat de run nu gewoon groen:
+
+<img src="images/pipeline-run-geslaagd.png" alt="OpenTofu-run #13: succeeded, alle stappen (init/plan/apply) met een groen vinkje" width="900">
+
+**Nog te doen (bewijs):** een plan-only run op een pull request die laat zien dat er niet automatisch wordt toegepast.
 
 ## 3.4 Advies: infrastructure protection voor SaxIT
 
