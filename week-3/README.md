@@ -107,6 +107,14 @@ jobs:
 
 Fix: de bucketnaam als extra secret (`TF_STATE_BUCKET`) meegeven aan `-backend-config`, en `-input=false` toevoegen aan `tofu init` zodat een ontbrekende waarde voortaan een duidelijke fout geeft in plaats van een stille hang.
 
+**Dezelfde soort fout, nog twee keer.** Na deze fix kwam `tofu init` wél doorheen, maar `tofu plan` faalde alsnog: `lab_profile`, `sshkey` en `my_ip` staan alleen in het gitignored `terraform.tfvars`, dus had de pipeline die nooit. `lab_profile` wordt bovendien rechtstreeks gebruikt in de AWS-provider (`profile = var.lab_profile`) - in CI bestaat er helemaal geen named profile (alleen de credentials uit de `configure-aws-credentials`-stap), dus die kon sowieso nooit werken. Fix in [`opentofu/variables.tf`](../opentofu/variables.tf): `lab_profile` krijgt `default = null`, zodat de AWS-provider in CI gewoon de normale credential-chain gebruikt.
+
+Voor `sshkey`, `my_ip`, en de drie rds-bootstrap-waardes (`db_vpc_id`, `db_route_table_id`, `rds_endpoint`) ligt het anders: die heeft `main.tf` echt nodig om te weten met welke al-bestaande resources (keypair, database-VPC) het moet werken - zie de toelichting daarover verderop in dit document. Een lege/foute waarde zou de pipeline niet laten hangen, maar zou een *geslaagde* apply met kapotte peering/connection-strings opleveren, tegen de live omgeving aan. Daarom staan die vijf nu als secrets, als `TF_VAR_*`-omgevingsvariabelen op het hele job (OpenTofu pikt die automatisch op), met exact dezelfde waardes als in mijn eigen `terraform.tfvars`:
+
+<img src="images/sshkey-secret-toevoegen.png" alt="New repository secret: SSHKEY = Cloud-Security (550600)" width="800">
+
+<img src="images/github-actions-secrets-compleet.png" alt="Alle 8 repository secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, DB_ROUTE_TABLE_ID, DB_VPC_ID, MY_IP, RDS_ENDPOINT, SSHKEY, TF_STATE_BUCKET" width="800">
+
 Een belangrijke beperking van een AWS Academy Learner Lab: de credentials zijn tijdelijk en verlopen na een paar uur. Dat betekent dat `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` en `AWS_SESSION_TOKEN` in de GitHub secrets ververst moeten worden telkens als ik een nieuwe labsessie start. In een echte productieomgeving zou dit met rollen en kortlevende, automatisch ververste credentials lopen (zie ook mijn advies in 3.4 en in week 2.3).
 
 De vier secrets staan inmiddels in de repository (Settings → Secrets and variables → Actions). GitHub laat de waarde van een secret normaal nooit meer zien nadat je hem hebt opgeslagen, alleen de naam en wanneer hij voor het laatst is bijgewerkt:

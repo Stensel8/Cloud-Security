@@ -2,8 +2,9 @@
 # Zie terraform.tfvars.example voor de vorm.
 
 variable "lab_profile" {
-  description = "AWS Academy Learner Lab account-ID, als CLI-profielnaam"
+  description = "AWS Academy Learner Lab account-ID, als CLI-profielnaam. Leeg/null laten gebruikt de normale AWS-credential-chain (env vars) in plaats van een named profile - nodig in CI, waar geen ~/.aws/config met profielen bestaat."
   type        = string
+  default     = null
 }
 
 variable "sshkey" {
