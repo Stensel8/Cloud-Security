@@ -1,167 +1,142 @@
-# Week 4
+# Week 4: Data protection
 
-Dataclassificatie en S3-buckets per classificatie (4.1–4.2), een eigen (BYOK) KMS-sleutel voor de geheime bucket (4.3), logging en alerting op die bucket (4.4), de AWS Academy-labstof (4.5), en een advies over AVG en encryptie (4.6).
+Data protection gaat over het beschermen van gegevens, waar ze ook staan. In de Security Pillar begint AWS daarbij met classificeren: eerst wordt bepaald hoe gevoelig de data is, en op basis daarvan worden de maatregelen gekozen. Daarna volgen encryptie bij opslag (at rest) en onderweg (in transit) [(Amazon Web Services, z.d.-a)](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/data-protection.html).
+
+Voor S3 biedt AWS verschillende vormen van encryptie aan de serverkant. Bij SSE-S3 beheert AWS de sleutel volledig zelf. Bij SSE-KMS staat de sleutel in AWS Key Management Service (KMS), met een eigen toegangsbeleid [(Amazon Web Services, z.d.-d)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html). In KMS kan ook eigen sleutelmateriaal worden geïmporteerd: bring your own key (BYOK). De klant blijft dan verantwoordelijk voor dat materiaal [(Amazon Web Services, z.d.-b)](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys.html).
+
+Voor SaxIT geldt daarnaast de AVG. Artikel 32 verplicht passende technische en organisatorische maatregelen om persoonsgegevens te beveiligen, en noemt versleuteling daarbij met zoveel woorden [(Europees Parlement en Raad van de Europese Unie, 2016)](https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX:32016R0679).
+
+Deze week bestaat uit zes opdrachten. Paragraaf 4.1 beschrijft de classificatie van de data van SaxIT, en paragraaf 4.2 het aanmaken van een S3-bucket per classificatie. Paragraaf 4.3 gaat over een eigen sleutel voor de geheime bucket, en paragraaf 4.4 over logging en alerting. Paragraaf 4.5 gaat over een lab uit AWS Academy, en paragraaf 4.6 bevat een advies over de AVG en encryptie.
 
 ## 4.1 Dataclassificatie
 
-| Classificatie | Voorbeelden | Motivatie |
+Voor SaxIT gebruik ik drie classificaties:
+
+| Classificatie | Voorbeelden | Waarom |
 | --- | --- | --- |
-| **Openbaar** | Persberichten, marketingmateriaal | Mag naar buiten, geen schade bij lekken, wel integriteit bewaken |
-| **Intern** | Personeelsplanning, interne processen | Niet voor klanten/publiek, lek is geen ramp maar wel reputatieschade |
-| **Geheim** | Klantgegevens CMDB, inloggegevens, persoonsgegevens | Valt onder de AVG (7.3), lek = meldingsplichtig datalek |
+| Openbaar | Persberichten, marketingmateriaal | Mag naar buiten. Een lek doet geen schade, maar de inhoud moet wel kloppen. |
+| Intern | Personeelsplanning, interne processen | Niet bedoeld voor klanten of het publiek. Een lek is geen ramp, maar wel schadelijk voor de reputatie. |
+| Geheim | Klantgegevens in de CMDB, inloggegevens, persoonsgegevens | Valt onder de AVG. Een lek is een datalek dat gemeld moet worden. |
 
-Nederlandse namen blijven de officiële termen, AWS-resources (bucketnamen, tags) zijn Engels: **Openbaar → `public`**, **Intern → `internal`**, **Geheim → `confidential`**.
-
-Maatregelen per categorie:
+In AWS gebruik ik de Engelse namen, omdat bucketnamen en tags in het Engels zijn: openbaar wordt `public`, intern wordt `internal` en geheim wordt `confidential`. Per classificatie horen er andere maatregelen bij:
 
 | Maatregel | Openbaar | Intern | Geheim |
 | --- | --- | --- | --- |
-| Encryptie in transit | HTTPS aanbevolen | HTTPS verplicht | HTTPS verplicht, alleen interne routes |
-| Encryptie at rest | SSE-S3 | SSE-S3 | SSE-KMS met eigen BYOK-sleutel (4.3) |
-| IAM | Read voor hele org | Read/write medewerkers | Alleen specifieke rollen, least privilege (week 2) |
-| Logging | CloudTrail management events | + CloudWatch-metrics | CloudTrail data events + EventBridge-alert per download (4.4) |
-| DLP | Niet nodig | Macie periodiek (6.2) | Macie structureel + tag-policy die verkeerde uploads blokkeert (4.2) |
+| Encryptie onderweg | HTTPS aanbevolen | HTTPS verplicht | HTTPS verplicht, alleen interne routes |
+| Encryptie bij opslag | SSE-S3 | SSE-S3 | SSE-KMS met een eigen sleutel (4.3) |
+| Toegang | Lezen voor de hele organisatie | Lezen en schrijven voor medewerkers | Alleen bepaalde rollen, least privilege (week 2) |
+| Logging | CloudTrail management events | Ook CloudWatch-metrics | CloudTrail data events en een melding bij elke download (4.4) |
+| Datalekpreventie | Niet nodig | Af en toe scannen met Macie (6.2) | Vast scannen met Macie, en uploads met de verkeerde tag weigeren (4.2) |
 
 ## 4.2 Drie buckets, één per classificatie
 
-**Waarom een bash-script en geen OpenTofu.** Stond eerst als `aws_s3_bucket`-resources in `opentofu/data-protection.tf`. Die resource leest ook altijd de object lock-configuratie uit, en die leesactie is in de Learner Lab geblokkeerd door een org-brede Service Control Policy. Niet op te lossen met IAM-rechten op mijn eigen rol. Bucket wordt wel aangemaakt, maar OpenTofu markeert 'm "tainted" en elke volgende `apply` loopt tegen dezelfde fout. Resultaat: oneindige lus (zie [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab) voor hoe het via OpenTofu wél lukt).
+Voor deze opdracht heb ik per classificatie een eigen bucket gemaakt in S3, de opslagdienst van AWS. Zo kan elke bucket zijn eigen encryptie en toegangsregels krijgen.
 
-`aws s3api create-bucket` doet die leesactie niet, dus staat dit nu in [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh), idempotent (opnieuw draaien hergebruikt bestaande resources). Alleen de BYOK KMS-sleutel (4.3, geen last van dit probleem) blijft in [`opentofu/data-protection.tf`](../opentofu/data-protection.tf), met een vaste alias (`alias/saxit-confidential-byok`) zodat het script 'm kan opzoeken. Draaien:
+Eerst stonden de buckets als resources in `opentofu/data-protection.tf`. Dat werkte niet in het Learner Lab: OpenTofu leest bij een bucket ook de instellingen voor object lock uit, en die leesactie is in het Learner Lab geblokkeerd. De bucket werd wel aangemaakt, maar OpenTofu zag hem als mislukt, en elke volgende `apply` liep op dezelfde fout vast. Hoe het met OpenTofu toch kan, staat in [setup/README.md](../setup/README.md#wat-welniet-mag-in-de-learner-lab).
 
-```bash
-./week-4/scripts/data-protection-setup.sh <unieke-suffix> <mailadres-voor-de-alert>
-```
+Daarom maak ik de buckets nu aan met het bash-script [`scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh), dat deze leesactie niet doet. Alleen de KMS-sleutel uit 4.3 staat nog in [`opentofu/data-protection.tf`](../opentofu/data-protection.tf). Het script maakt drie buckets aan, `saxit-data-public`, `saxit-data-internal` en `saxit-data-confidential`, en stelt voor elke bucket het volgende in:
 
-Het script zet per classificatiebucket (`saxit-data-public-*`, `saxit-data-internal-*`, `saxit-data-confidential-*`):
+- **Standaardencryptie:** SSE-S3 voor public en internal, en SSE-KMS met de eigen sleutel voor confidential.
+- **Een bucket policy:** alleen HTTPS is toegestaan, en uploads zonder de juiste encryptie of zonder de tag die bij de bucket hoort, worden geweigerd.
+- **Block Public Access:** staat volledig aan. "Public" betekent hier dat de hele organisatie het mag lezen, niet dat het op internet staat.
 
-- **Standaardencryptie verplicht**: SSE-S3 voor public/internal, SSE-KMS met de sleutel uit 4.3 voor confidential.
-- **Bucket policy** die alleen HTTPS toestaat, uploads zonder juiste `x-amz-server-side-encryption`-header weigert, en uploads zonder de bij déze bucket horende `classification`-tag weigert. Zo belandt een confidential bestand nooit per ongeluk als "public" getagd in de verkeerde bucket.
-- **Block Public Access volledig aan**: "public" betekent hier intern leesbaar voor de hele organisatie, geen publiek-op-internet bucket.
+Door de regel voor de tag kan een geheim bestand niet per ongeluk in de verkeerde bucket terechtkomen. Een tag wordt meegegeven bij het uploaden [(Amazon Web Services, z.d.-f)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html). Dit is de regel, waarbij `$classification` per bucket wordt ingevuld:
 
-```bash
+```json
 {"Sid":"DenyWrongClassificationTag","Effect":"Deny","Principal":"*","Action":"s3:PutObject","Resource":"$arn/*","Condition":{"StringNotEquals":{"s3:RequestObjectTag/classification":"$classification"}}}
 ```
 
-Demobestanden in [`demo-files/`](demo-files/) ([`public-press-release.txt`](demo-files/public-press-release.txt), [`internal-staff-planning.txt`](demo-files/internal-staff-planning.txt), [`confidential-customer-data.txt`](demo-files/confidential-customer-data.txt), allemaal nepdata). Upload met de bijbehorende tag:
+![Uitvoer van data-protection-setup.sh: drie buckets met hun policies en encryptie](images/data-protection-script-output.png)
 
-```bash
-aws s3api put-object --bucket saxit-data-public-<suffix> --key public-press-release.txt \
-  --body demo-files/public-press-release.txt --tagging "classification=public" --server-side-encryption AES256
+![De S3-console met de drie classificatiebuckets, de bucket voor de CloudTrail-logs en die voor de OpenTofu-state](images/s3-buckets-overzicht.png)
 
-aws s3api put-object --bucket saxit-data-confidential-<suffix> --key confidential-customer-data.txt \
-  --body demo-files/confidential-customer-data.txt --tagging "classification=confidential" --server-side-encryption aws:kms --ssekms-key-id <kms-key-id>
-```
+Voor de demo staan er drie bestanden met nepdata in [`demo-files/`](demo-files/), één per classificatie. Om de regel voor de tag te testen, heb ik een bestand met de tag `classification=confidential` naar de public-bucket geüpload. S3 weigert dat:
 
-Een gebruiker beperken tot bepaalde buckets gaat via een IAM-policy met specifieke bucket-ARN's als `Resource` i.p.v. `*`, zelfde principe als de RDS-rol in 2.1. Kan ik hier niet aantonen (zelfde IAM-beperking), maar het idee is identiek.
+![Een upload met de tag classification=confidential naar de public-bucket](images/upload-verkeerde-tag.png)
 
-Script gedraaid:
+![De upload mislukt met Access denied](images/upload-access-denied.png)
 
-<img src="images/data-protection-script-output.png" alt="data-protection-setup.sh output: 3 buckets + policies + encryptie aangemaakt" width="800">
-
-<img src="images/s3-buckets-overzicht.png" alt="S3-console: alle 5 buckets (public/internal/confidential/cloudtrail-logs/tfstate)" width="700">
-
-Geweigerde upload: `classification=confidential`-tag op een bestand richting de `public`-bucket:
-
-<img src="images/upload-verkeerde-tag.png" alt="Upload-tag: classification=confidential op saxit-data-public" width="700">
-<img src="images/upload-access-denied.png" alt="Upload failed: Access denied" width="700">
-
-Bucket bleef leeg:
-
-<img src="images/public-bucket-leeg.png" alt="saxit-data-public-550600: 0 objects" width="700">
+Een gebruiker beperken tot bepaalde buckets gaat met een IAM-policy die alleen die buckets als resource noemt, op dezelfde manier als de rol in 2.1. Dat kan ik in het Learner Lab niet laten zien, om dezelfde reden als in 2.1.
 
 ## 4.3 Bring your own key (BYOK) voor de geheime bucket
 
-Voor de geheime bucket gebruik ik een KMS-sleutel met zelf gegenereerd keymateriaal (`aws_kms_external_key`, origin `EXTERNAL`) i.p.v. een door AWS beheerde sleutel. Het keymateriaal genereer ik lokaal, nooit in de console:
+De geheime bucket gebruikt een KMS-sleutel met sleutelmateriaal dat ik zelf heb gemaakt, in plaats van een sleutel van AWS. In OpenTofu is dat een `aws_kms_external_key`: een sleutel zonder materiaal, waarin het materiaal daarna zelf wordt geïmporteerd. Volgens de documentatie van AWS bestaat dat uit de volgende stappen [(Amazon Web Services, z.d.-e)](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys-encrypt-key-material.html):
 
-```bash
-# 1. Eigen 256-bit AES-sleutelmateriaal genereren met OpenSSL
-openssl rand -out plaintext-key.bin 32
+1. Lokaal 256 bits sleutelmateriaal aanmaken met OpenSSL.
+2. Bij AWS een wrapping key en een import-token opvragen voor de sleutel.
+3. Het sleutelmateriaal versleutelen met die wrapping key, zodat het nooit onversleuteld naar AWS gaat.
+4. Het versleutelde materiaal importeren in KMS.
+5. Het onversleutelde materiaal lokaal wissen.
 
-# 2. Wrapping-key en import-token bij AWS opvragen voor deze KMS-sleutel
-aws kms get-parameters-for-import \
-  --key-id <key-id-van-de-aws_kms_external_key> \
-  --wrapping-algorithm RSAES_OAEP_SHA_256 \
-  --wrapping-key-spec RSA_2048
+Het script uit 4.2 zoekt de sleutel op via de alias `alias/saxit-confidential-byok` en stelt hem in als standaardencryptie voor de geheime bucket. Bij de precieze opties van de `aws kms`- en `openssl`-commando's heb ik hulp gehad van Claude.
 
-# 3. Het eigen keymateriaal versleutelen met die wrapping-key (nooit onversleuteld versturen)
-openssl pkeyutl -encrypt -in plaintext-key.bin -out encrypted-key-material.bin \
-  -pubin -inkey wrapping-key.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
+![De terminal tijdens het importeren: parameters opvragen, het materiaal versleutelen en importeren](images/kms-import-terminal.png)
 
-# 4. Het versleutelde materiaal importeren
-aws kms import-key-material \
-  --key-id <key-id> \
-  --encrypted-key-material fileb://encrypted-key-material.bin \
-  --import-token fileb://import-token.bin \
-  --expiration-model KEY_MATERIAL_DOES_NOT_EXPIRE
+![De sleutel saxit-confidential-byok staat in KMS op Enabled](images/kms-key-enabled.png)
 
-# 5. Het lokale plaintext-sleutelmateriaal direct veilig wissen
-shred -u plaintext-key.bin
-```
-
-[`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh) zoekt deze sleutel op via de alias (`alias/saxit-confidential-byok`) en zet 'm als standaardencryptie op de geheime bucket (zie 4.2 voor waarom via een los script).
-
-Commando's zelf uitgevoerd; voor de exacte `aws kms`/`openssl`-aanroepen (jq, DER/PEM-conversie) heb ik Claude Sonnet 5 gebruikt.
-
-Keymateriaal geïmporteerd:
-
-<img src="images/kms-import-terminal.png" alt="Terminal: get-parameters-for-import, jq-extractie, openssl-encryptie, import-key-material" width="800">
-<img src="images/kms-key-enabled.png" alt="KMS-console: saxit-confidential-byok status Enabled" width="900">
-
-Encryptie-instelling van de geheime bucket wijst naar deze sleutel:
-
-<img src="images/confidential-bucket-encryptie.png" alt="saxit-data-confidential-550600: Default encryption SSE-KMS, Encryption key ARN matcht saxit-confidential-byok" width="900">
+![De geheime bucket gebruikt standaard SSE-KMS met de sleutel saxit-confidential-byok](images/confidential-bucket-encryptie.png)
 
 ## 4.4 Logging en alerting op de geheime bucket
 
-Ook via [`week-4/scripts/data-protection-setup.sh`](scripts/data-protection-setup.sh) (zie 4.2):
+Voor de logging en alerting gebruik ik drie diensten van AWS. CloudTrail legt vast welke acties er in het account worden uitgevoerd. EventBridge kan op zulke acties reageren, en SNS verstuurt berichten, bijvoorbeeld per e-mail. Het script uit 4.2 zet deze onderdelen op:
 
-- **CloudTrail-trail** (`saxit-confidential-bucket-trail`) die data events (object-niveau) logt voor de geheime bucket, naar een aparte logs-bucket.
-- **EventBridge-rule** (`saxit-confidential-object-read`) die matcht op `GetObject` en doorstuurt naar een **SNS-topic** met e-mail-abonnement: een mail bij elke download.
-- **CloudWatch-dashboard** (`saxit-s3-classification`) met objectaantal en bucketgrootte per classificatie.
+- **Een CloudTrail-trail**, `saxit-confidential-bucket-trail`, die elke actie op bestanden in de geheime bucket logt (data events), naar een aparte bucket voor logs.
+- **Een EventBridge-regel**, `saxit-confidential-object-read`, die reageert op elke download (`GetObject`) uit de geheime bucket en een bericht stuurt naar een SNS-topic. Dat topic stuurt bij elke download een e-mail.
+- **Een CloudWatch-dashboard**, `saxit-s3-classification`, met het aantal bestanden en de grootte per classificatie.
 
-```json
-{"source":["aws.s3"],"detail-type":["AWS API Call via CloudTrail"],"detail":{"eventSource":["s3.amazonaws.com"],"eventName":["GetObject"],"requestParameters":{"bucketName":["saxit-data-confidential-<suffix>"]}}}
-```
+![De bevestiging van het mail-abonnement op het SNS-topic](images/sns-subscription-confirmed.png)
 
-Als `aws events put-rule` faalt (zelfde IAM-beperking als 2.1), vangt het script dat af en print het event pattern alsnog, zodat ik kan laten zien hóe de rule zou werken.
+Om de keten te testen, heb ik het demobestand met klantgegevens naar de geheime bucket geüpload en daarna weer gedownload.
 
-SNS-mail bevestigd:
+![Het bestand confidential-customer-data.txt is geüpload naar de geheime bucket](images/upload-confidential-succeeded.png)
 
-<img src="images/sns-confirmation-email.png" alt="AWS SNS subscription confirmation e-mail" width="700">
-<img src="images/sns-subscription-confirmed.png" alt="Subscription confirmed-pagina na het klikken op de link" width="700">
+![Het bestand wordt weer gedownload](images/download-confidential-object.png)
 
-Demobestand geüpload naar de geheime bucket en weer gedownload, om de keten te triggeren:
+Kort daarna kwam de alert-mail binnen, nog voordat het logbestand van CloudTrail in de bucket stond. In de mail staat het volledige CloudTrail-event, met de bucket, het bestand en de actie:
 
-<img src="images/upload-confidential-tag.png" alt="Upload-tag: classification=confidential" width="700">
-<img src="images/upload-confidential-encryptie.png" alt="Server-side encryption: bucket settings (SSE-KMS, saxit-confidential-byok)" width="700">
-<img src="images/upload-confidential-succeeded.png" alt="Upload succeeded: confidential-customer-data.txt" width="700">
-<img src="images/download-confidential-object.png" alt="Download van confidential-customer-data.txt, 578 B, Done" width="700">
+![De alert-mail met het CloudTrail-event: GetObject op confidential-customer-data.txt in de geheime bucket](images/cloudtrail-alert-mail.png)
 
-De alert-mail kwam binnen vóór het CloudTrail-logbestand zelf beschikbaar was (S3-levering heeft meer vertraging dan EventBridge). De mail bevat het volledige CloudTrail-event, dus dat is bewijs voor beide:
+Het CloudWatch-dashboard bleef leeg. S3 publiceert de opslagmetrics maar één keer per dag [(Amazon Web Services, z.d.-c)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cloudwatch-monitoring.html), en de buckets waren die dag pas aangemaakt. De widgets en bucketnamen staan wel goed ingesteld.
 
-<img src="images/cloudtrail-alert-mail.png" alt="Alert-mail met volledige CloudTrail-event: eventName GetObject, bucketName saxit-data-confidential-550600, key confidential-customer-data.txt" width="900">
+![Het dashboard saxit-s3-classification nog zonder gegevens](images/cloudwatch-dashboard-no-data.png)
 
-**CloudWatch-dashboard: "No data available".** Eerlijk: is me vandaag niet gelukt om hier data in te krijgen. S3's Storage Metrics worden maar **1x per dag** gepubliceerd, en de buckets zijn vandaag pas aangemaakt. Eerste datapunt zou morgen moeten verschijnen. Widgets/metrics/bucketnamen staan in elk geval goed.
+## 4.5 AWS Academy: Lab 5.1 en de knowledge check
 
-<img src="images/cloudwatch-dashboard-no-data.png" alt="saxit-s3-classification dashboard: No data available (S3 Storage Metrics worden 1x per dag gepubliceerd)" width="900">
-
-## 4.5 AWS Academy Cloud Security Foundations: Lab 5.1
-
-**Bewijs:** **Module 5 Knowledge Check: 100/100**, zie het volledige cijferoverzicht bij week 7.4 ([`week-7/images/aws-academy-grades-overzicht.pdf`](../week-7/images/aws-academy-grades-overzicht.pdf)). Zie week 2.2 voor de toelichting over AWS Academy's onbetrouwbare labs-voltooiingsregistratie (Labs blijven daar standaard op `- / 100` staan).
+Voor deze opdracht heb ik lab 5.1 in AWS Academy doorlopen. Voor de knowledge check van module 5 haalde ik 100 van de 100 punten. Het cijferoverzicht staat bij [week 7.4](../week-7/README.md). Ook bij dit lab staat in het overzicht `- / 100`, om dezelfde reden als in 2.2.
 
 ## 4.6 Advies: AVG en encryptie op de S3-buckets
 
-**Relatie met de AVG.** Artikel 32 AVG verplicht "passende technische en organisatorische maatregelen" bij persoonsgegevens (SaxIT's klantgegevens, zie 4.1), en noemt encryptie expliciet. Dataclassificatie (4.1) is de eerste stap, encryptie at rest + eigen sleutel (4.2/4.3) de technische invulling. Logging/alerting (4.4) ondersteunt zowel de meldplicht datalekken (binnen 72 uur weten wát er lekte, zie 5.1/7.3) als accountability: wie was wanneer bij welke data.
+### Relatie met de AVG
 
-**Encryptievormen op S3, van zwak naar sterk:**
+De klantgegevens in de CMDB zijn persoonsgegevens, waardoor artikel 32 van de AVG van toepassing is. De maatregelen van deze week sluiten daarop aan. De classificatie (4.1) bepaalt welke data extra bescherming nodig heeft. Encryptie met een eigen sleutel (4.2 en 4.3) is de technische maatregel die de AVG noemt. De logging (4.4) laat zien wie wanneer bij welke data was. Dat helpt als er toch een datalek is: zo'n lek moet binnen 72 uur worden gemeld, en dan moet SaxIT weten wat er is gelekt (zie 5.1 en 7.3).
 
-- **SSE-S3** (`AES256`): AWS beheert de sleutel volledig. Eenvoudigst, geen controle/zicht op de sleutel.
-- **SSE-KMS**: sleutel staat in KMS met eigen toegangsbeleid en CloudTrail-audit van elk gebruik. SaxIT kan nu afdwingen én loggen wie mag ontsleutelen.
-- **SSE-KMS met eigen (BYOK) keymateriaal** (4.3): zoals SSE-KMS, maar SaxIT genereerde het materiaal zelf en kan het intrekken. Data wordt dan onherstelbaar onleesbaar, ook voor AWS ("crypto-shredding").
-- **SSE-C** (niet gebruikt hier): sleutel per request door de klant meegegeven, nog meer controle maar ook meer kans op een menselijke fout (sleutel kwijt = data kwijt).
+### Vormen van encryptie in S3
 
-Voor de geheime bucket is SSE-KMS met eigen keymateriaal de juiste keuze: audit-trail van KMS, plus de garantie dat alleen SaxIT het keymateriaal ooit in bezit had.
+S3 biedt vier vormen van encryptie aan de serverkant, van minder naar meer controle voor SaxIT:
 
-Het materiaal gaat nooit onversleuteld naar AWS: lokaal gegenereerd met OpenSSL, versleuteld met een door KMS geleverde wrapping-key, en pas dát pakket gaat naar AWS, waar het met een privésleutel die AWS nooit verlaat wordt uitgepakt.
+- **SSE-S3:** AWS beheert de sleutel volledig. Dat is het eenvoudigst, maar SaxIT heeft geen zicht op de sleutel.
+- **SSE-KMS:** de sleutel staat in KMS, en SaxIT bepaalt wie hem mag gebruiken.
+- **SSE-KMS met eigen sleutelmateriaal (BYOK):** hetzelfde als SSE-KMS, maar SaxIT heeft het materiaal zelf gemaakt en kan het ook weer verwijderen. Zolang het materiaal niet opnieuw wordt geïmporteerd, is de data dan niet meer te ontsleutelen.
+- **SSE-C:** de klant geeft bij elk verzoek zelf de sleutel mee. Dat geeft de meeste controle, maar ook het meeste risico: wie de sleutel kwijtraakt, raakt de data kwijt.
 
-Bronnen: [AWS Well-Architected: Data protection](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/data-protection.html), [AVG/GDPR uitgelegd (Europese Commissie)](https://commission.europa.eu/law/law-topic/data-protection/data-protection-explained_en), [Client-side encryption (AWS)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingClientSideEncryption.html), [BYOK: eigen keymateriaal importeren in KMS](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys.html), [Keymateriaal versleutelen voor import](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys-encrypt-key-material.html), [S3-encryptie met customer managed keys](https://medium.com/@dyavanapellisujal7/aws-s3-encryption-with-customer-managed-keys-using-sse-kms-for-secure-object-storage-045f6fddeea5), [S3 object tagging](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html).
+### Advies
+
+Mijn advies is SSE-S3 voor openbare en interne data, en SSE-KMS met eigen sleutelmateriaal voor de geheime data. Zo houdt SaxIT zelf de controle over de sleutel voor de gevoeligste gegevens.
+
+Daarbij hoort één aanvulling op wat ik in 4.3 deed. Na het importeren heb ik het onversleutelde materiaal gewist. In productie moet SaxIT een kopie veilig buiten AWS bewaren, bijvoorbeeld offline in een kluis. AWS raadt dat ook aan, zodat de sleutel kan worden hersteld als er iets misgaat [(Amazon Web Services, z.d.-b)](https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys.html).
+
+## Bronnen
+
+Amazon Web Services. (z.d.-a). *Data protection*. Security Pillar: AWS Well-Architected Framework. https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/data-protection.html
+
+Amazon Web Services. (z.d.-b). *Importing key material for AWS KMS keys*. AWS Key Management Service Developer Guide. https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys.html
+
+Amazon Web Services. (z.d.-c). *Monitoring metrics with Amazon CloudWatch*. Amazon S3 User Guide. https://docs.aws.amazon.com/AmazonS3/latest/userguide/cloudwatch-monitoring.html
+
+Amazon Web Services. (z.d.-d). *Protecting data with server-side encryption*. Amazon S3 User Guide. https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html
+
+Amazon Web Services. (z.d.-e). *Step 3: Encrypt the key material*. AWS Key Management Service Developer Guide. https://docs.aws.amazon.com/kms/latest/developerguide/importing-keys-encrypt-key-material.html
+
+Amazon Web Services. (z.d.-f). *Tagging your objects*. Amazon S3 User Guide. https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html
+
+Europees Parlement en Raad van de Europese Unie. (2016). *Verordening (EU) 2016/679 van het Europees Parlement en de Raad van 27 april 2016 betreffende de bescherming van natuurlijke personen in verband met de verwerking van persoonsgegevens en betreffende het vrije verkeer van die gegevens en tot intrekking van Richtlijn 95/46/EG (algemene verordening gegevensbescherming)*. Publicatieblad van de Europese Unie, L 119. https://eur-lex.europa.eu/legal-content/NL/TXT/?uri=CELEX:32016R0679

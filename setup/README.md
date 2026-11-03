@@ -5,7 +5,7 @@ Eigen, herschreven versie van de install guide van school (`school docs/handleid
 ## Wat ik anders doe dan de handleiding
 
 - **OpenTofu in plaats van Terraform.** Zelfde taal, zelfde providers. Zie [week-1/README.md](../week-1/README.md) voor waarom.
-- **Nieuwere AWS-provider (6.70.0 i.p.v. 3.66.0).** Daarvoor moest `aws_db_instance`'s `name` naar `db_name`. Zie [week-1/README.md](../week-1/README.md).
+- **Nieuwere AWS-provider (6.70.0 i.p.v. 3.66.0).** Daarvoor moest `aws_db_instance`'s `name` naar `db_name` ([upgradegids](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/version-5-upgrade)). In `rds-bootstrap/rds.tf` staat ook een expliciete `identifier = "cloudsecdb"`, anders vindt de data-lookup in `iam.tf` de database niet.
 - **Variabelen in plaats van waardes in `main.tf`.** Keypair-naam, bucketnaam, account-ID en mijn eigen IP staan in `terraform.tfvars`/`backend.hcl` (niet gecommit) en in `labnotes.txt`, nooit in de `.tf`-bestanden zelf: dat gaat naar een publieke repo.
 - **tofuenv in plaats van tfenv** om OpenTofu te installeren (zelfde soort tool, ander project).
 - **Lokaal werken i.p.v. in CloudShell.** Ik draai alles vanaf mijn eigen laptop, met een eigen scriptje (`setup/lab-login.sh`) om telkens nieuwe lab-credentials in te stellen. Zie "Lab-credentials verversen" hieronder.
@@ -77,6 +77,62 @@ tofu apply
 ```
 
 9. Testen: DNS-naam van de presentation-load-balancer in de browser.
+
+## Schermafdrukken van de eerste uitrol
+
+Deze screenshots horen bij de stappen hierboven. Het eigenlijke bewijs voor de opdrachten staat in [week 1](../week-1/README.md).
+
+De Learner Lab starten via AWS Academy en de tijdelijke credentials ophalen (afgeschermd met een ondoorzichtig vlak, want blur op monospace-tekst is soms terug te rekenen):
+
+![AWS Academy-dashboard met de cursus en de Learner Lab](../week-1/images/aws-academy-dashboard.png)
+
+![Learner Lab met de Start Lab-knop](../week-1/images/learner-lab-start.png)
+
+![Tijdelijke CLI-credentials, afgeschermd](../week-1/images/learner-lab-cloud-access.png)
+
+![AWS CLI installeren met pacman](../week-1/images/aws-cli-installeren.png)
+
+Een eigen keypair aanmaken (stap 3):
+
+![EC2-console, zoeken naar Key Pairs](../week-1/images/ec2-keypairs-zoeken.png)
+
+![Overzicht van de bestaande key pairs](../week-1/images/ec2-keypairs-overzicht.png)
+
+![Create key pair: type ED25519, formaat .pem](../week-1/images/ec2-keypair-aanmaken.png)
+
+De state-bucket, hier via de console in plaats van de CLI (stap 4):
+
+![S3-console zonder buckets](../week-1/images/s3-buckets-leeg.png)
+
+![Create bucket met een account-regionale naam in us-east-1](../week-1/images/s3-bucket-aanmaken.png)
+
+De database-VPC uitrollen met `rds-bootstrap` en daarna de lokale state weggooien (stap 7):
+
+![tofu apply voor rds-bootstrap: de database wordt aangemaakt](../week-1/images/rds-bootstrap-apply-plan-1.png)
+
+![Plan bevestigd met yes](../week-1/images/rds-bootstrap-apply-confirm-create.png)
+
+![Apply complete, 6 resources toegevoegd](../week-1/images/rds-bootstrap-apply-complete.png)
+
+![De lokale state van rds-bootstrap verwijderd](../week-1/images/rds-bootstrap-state-opgeruimd.png)
+
+De rest van de omgeving uitrollen met `main.tf` (stap 8):
+
+![tofu init met backend.hcl](../week-1/images/main-tf-init.png)
+
+![tofu apply: 65 resources toe te voegen](../week-1/images/main-tf-apply-plan.png)
+
+![Plan bevestigd, de resources worden aangemaakt](../week-1/images/main-tf-apply-confirm-create.png)
+
+De resource map van de application-lb en de details van een paar instances:
+
+![Resource map van de application-lb: poort 8080 naar twee healthy targets](../week-1/images/resource-map-application-lb.png)
+
+![Instance summary van de bastion](../week-1/images/bastion-instance-summary.png)
+
+![Instance summary van web01](../week-1/images/web01-instance-summary.png)
+
+![Instance summary van app01: geen publiek IPv4-adres](../week-1/images/app01-instance-summary-geen-public-ip.png)
 
 ## Wat wel/niet mag in de Learner Lab
 

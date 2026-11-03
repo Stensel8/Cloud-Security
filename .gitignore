@@ -44,10 +44,3 @@ __pycache__/
 
 # Schoolmateriaal (pptx/docx van school, niet voor de publieke repo)
 /school docs/
-
-# Portfolio-exports (setup/export-portfolio.sh), lokaal gegenereerd
-*.pdf
-*.odt
-
-# Gegenereerd door setup/build_bibliography.py (bron: de README's zelf)
-setup/bibliography.bib

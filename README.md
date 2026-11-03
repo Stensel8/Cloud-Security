@@ -1,5 +1,5 @@
 ### React Product App using Spring Boot as the backend
-![alt text](react-product-app.avif)
+![React Product App met Spring Boot-backend](react-product-app.avif)
 
 [![CodeTrunk mirror](https://img.shields.io/badge/mirror-CodeTrunk%20(EU)-2496ED)](https://repos.codetrunk.eu/Stensel8/Cloud-Security)
 
@@ -23,8 +23,6 @@ Ik werk hierbij met AI-assistentie, via IDE-integraties. De opzet, keuzes en het
 
 - Anthropic. (2026). *Claude (Sonnet 5)* [Large language model]. [https://claude.ai](https://claude.ai)
 - Mistral AI. (2026). *Mistral Vibe (GLM 5.3)* [Large language model]. [https://mistral.ai](https://mistral.ai)
-
-**PDF/ODT-export van deze portfolio.** Bij elke push naar `uitwerkingen` zet een GitHub Actions-workflow ([`.github/workflows/docs.yml`](.github/workflows/docs.yml)) automatisch een PDF en een ODT klaar met alle informatie uit de repo, als assets bij een nieuwe [release](../../releases). Ik heb deze exports dus niet zelf handmatig gemaakt; ze worden automatisch gegenereerd vanuit de README's via [`setup/export-portfolio.sh`](setup/export-portfolio.sh) (pandoc + typst).
 
 De repository staat ook gespiegeld op [CodeTrunk](https://repos.codetrunk.eu/Stensel8/Cloud-Security), een Europese Git-host met IPv6-ondersteuning: voor redundantie en omdat ik niet alles alleen op GitHub (VS) wil hebben staan.
 

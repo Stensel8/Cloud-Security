@@ -1,0 +1,57 @@
+// Bron van netwerktekening.svg. Opnieuw renderen: dot -Tsvg netwerktekening.dot -o netwerktekening.svg
+digraph netwerk {
+  rankdir=LR;
+  newrank=true;
+  nodesep=0.25;
+  ranksep=0.45;
+  fontname="Liberation Sans";
+  fontsize=15;
+  node [fontname="Liberation Sans", fontsize=15, shape=box, style="rounded,filled", fillcolor="white", color="#8a96a8", margin="0.18,0.08"];
+  edge [fontname="Liberation Sans", fontsize=12, color="#4a5568", fontcolor="#2d3748", arrowsize=0.7];
+
+  internet [label="Internet", fillcolor="#e8eef7", color="#1f3864"];
+
+  subgraph cluster_vpc {
+    label=<<b>saxit_vpc</b>  10.0.0.0/16>;
+    labeljust=l;
+    style="rounded"; color="#1f3864"; penwidth=1.2;
+
+    subgraph cluster_public {
+      label=<public subnets<br/><font point-size="12">10.0.10.0/24 · 10.0.11.0/24</font>>;
+      style="rounded,filled"; fillcolor="#f4f6f9"; color="#c3cad5";
+      plb [label=<presentation-lb>];
+      bastion [label=<bastion<br/><font point-size="12">bastion_sg</font>>];
+      alb [label=<application-lb>];
+    }
+
+    subgraph cluster_pres {
+      label=<presentationtier_sg<br/><font point-size="12">10.0.1.0/24 · 10.0.2.0/24</font>>;
+      style="rounded,filled"; fillcolor="#f4f6f9"; color="#c3cad5";
+      web [label=<web01 · web02<br/><font point-size="12">React-frontend</font>>];
+    }
+
+    subgraph cluster_app {
+      label=<applicationtier_sg<br/><font point-size="12">10.0.3.0/24 · 10.0.4.0/24</font>>;
+      style="rounded,filled"; fillcolor="#f4f6f9"; color="#c3cad5"; labelloc=b;
+      app [label=<app01 · app02<br/><font point-size="12">Spring-backend</font>>];
+    }
+  }
+
+  subgraph cluster_db {
+    label=<<b>saxit_vpc_db</b>  10.1.0.0/16>;
+    labeljust=l;
+    style="rounded"; color="#1f3864"; penwidth=1.2;
+    rds [label=<RDS MariaDB<br/><font point-size="12">rds_security_group</font>>, shape=cylinder, fillcolor="#fbeeee", color="#b07a7a"];
+  }
+
+  internet -> alb [label=" HTTP :8080"];
+  internet -> bastion [label=" SSH :22\n alleen eigen IP", style=dashed];
+  internet -> plb [label=" HTTP :80"];
+  alb -> app [label=" :8080"];
+  bastion -> app [label=" SSH :22", style=dashed];
+  bastion -> web [label=" SSH :22", style=dashed];
+  plb -> web [label=" :80"];
+  app -> rds [xlabel="MySQL :3306\nVPC peering"];
+  { rank=same; app; rds; }
+
+}
