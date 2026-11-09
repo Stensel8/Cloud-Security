@@ -1,5 +1,5 @@
 # Eclipse Temurin (Alpine), JDK only where we actually compile
-FROM docker.io/library/eclipse-temurin:27-jdk-alpine@sha256:63c4f0092cb994c7a8c0446aace33a2de3763128fcc68c211d7ad3577c75b59f AS build
+FROM docker.io/library/eclipse-temurin:27-jdk-alpine@sha256:8b32b7f44f8752d9aaa0a58d2fb8d679aa719083f8f0c2d9bd90eb35f2fc149d AS build
 
 # Set the working directory
 WORKDIR /app
@@ -14,7 +14,7 @@ COPY ./src /app/src
 RUN chmod +x /app/mvnw && /app/mvnw clean package -Dmaven.test.skip=true
 
 # Runtime only needs a JRE, not the full JDK the build stage used
-FROM docker.io/library/eclipse-temurin:27-jre-alpine@sha256:0faf24c1d1e778bbc0700fc71c53b081c9432f1e51e6e41c86c63840e8b89ac1
+FROM docker.io/library/eclipse-temurin:27-jre-alpine@sha256:3689ae1ed2051837cfd9ad0977446a60ca799d95cbb8f8e64a42e72ecaad6b35
 
 # Set the working directory
 WORKDIR /app
